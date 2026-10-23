@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Material Design 3 色彩令牌（浅色）
+  种子色取自基准 APK 品牌色 #E5383B（网易云红），按 MD3 色调板（Tonal Palette）推导。
+-->
+<resources>
+    <!-- Primary -->
+    <color name="md_primary">#B32024</color>
+    <color name="md_on_primary">#FFFFFF</color>
+    <color name="md_primary_container">#FFDAD7</color>
+    <color name="md_on_primary_container">#410004</color>
+    <color name="md_inverse_primary">#FFB3AE</color>
+
+    <!-- Secondary -->
+    <color name="md_secondary">#775652</color>
+    <color name="md_on_secondary">#FFFFFF</color>
+    <color name="md_secondary_container">#FFDAD6</color>
+    <color name="md_on_secondary_container">#2C1512</color>
+
+    <!-- Tertiary -->
+    <color name="md_tertiary">#715B2E</color>
+    <color name="md_on_tertiary">#FFFFFF</color>
+    <color name="md_tertiary_container">#FCDFA6</color>
+    <color name="md_on_tertiary_container">#261900</color>
+
+    <!-- Error -->
+    <color name="md_error">#BA1A1A</color>
+    <color name="md_on_error">#FFFFFF</color>
+    <color name="md_error_container">#FFDAD6</color>
+    <color name="md_on_error_container">#410002</color>
+
+    <!-- Surface / Background -->
+    <color name="md_background">#FFF8F7</color>
+    <color name="md_on_background">#231919</color>
+    <color name="md_surface">#FFF8F7</color>
+    <color name="md_on_surface">#231919</color>
+    <color name="md_surface_variant">#F5DDDA</color>
+    <color name="md_on_surface_variant">#534341</color>
+    <color name="md_surface_container_low">#FFF0EF</color>
+    <color name="md_surface_container">#FCEAE8</color>
+    <color name="md_surface_container_high">#F6E4E2</color>
+    <color name="md_surface_container_highest">#F0DEDC</color>
+    <color name="md_inverse_surface">#392E2D</color>
+    <color name="md_inverse_on_surface">#FFEDEB</color>
+
+    <!-- Outline -->
+    <color name="md_outline">#857371</color>
+    <color name="md_outline_variant">#D8C2BF</color>
+
+    <!-- 外观设置：可选调色板的完整 32 令牌定义见 palettes.xml（构建期由 Material HCT 生成） -->
+
+    <!-- 启动图标背景（保持既有资源不变） -->
+    <color name="ic_launcher_background">#F7F2FA</color>
+</resources>

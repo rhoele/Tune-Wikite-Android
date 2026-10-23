@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        style="@style/Widget.ClassicWiki.Toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorSurface"
+        app:navigationIcon="@drawable/ic_back"
+        app:title="@string/download_audio_title" />
+
+    <!-- 排序栏：时间 / 名称 / 大小 + 正倒序切换 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/screen_horizontal_margin"
+        android:layout_marginEnd="@dimen/screen_horizontal_margin"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/toggle_audio_sort"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            app:selectionRequired="true"
+            app:singleSelection="true">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_sort_time"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_target_min"
+                android:text="@string/download_audio_sort_time" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_sort_name"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_target_min"
+                android:text="@string/download_audio_sort_name" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_sort_size"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_target_min"
+                android:text="@string/download_audio_sort_size" />
+
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_sort_direction"
+            style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="@dimen/spacing_sm"
+            android:contentDescription="@string/download_audio_sort_asc"
+            app:icon="@drawable/ic_arrow_downward" />
+
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/audio_root"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- 列表本体：作为底栏玻璃的采样源，必须与底栏互为兄弟节点 -->
+        <FrameLayout
+            android:id="@+id/audio_content"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_audio"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:fadeScrollbars="false"
+                android:paddingStart="@dimen/screen_horizontal_margin"
+                android:paddingTop="@dimen/spacing_sm"
+                android:paddingEnd="@dimen/screen_horizontal_margin"
+                android:paddingBottom="@dimen/spacing_lg"
+                android:scrollbars="none" />
+
+            <!-- 可拖动的快速滚动条：常驻右侧，按比例跳转 -->
+            <com.auramusic.wiki.classic.QuickScrollBar
+                android:id="@+id/quick_scroll"
+                android:layout_width="24dp"
+                android:layout_height="match_parent"
+                android:layout_gravity="end"
+                android:layout_marginTop="@dimen/spacing_sm"
+                android:layout_marginBottom="@dimen/spacing_lg" />
+
+            <!-- 字母索引：仅在按名称排序时显示，让开右侧滚动条 -->
+            <com.auramusic.wiki.classic.LetterIndexBar
+                android:id="@+id/letter_index"
+                android:layout_width="22dp"
+                android:layout_height="match_parent"
+                android:layout_gravity="end"
+                android:layout_marginTop="@dimen/spacing_sm"
+                android:layout_marginEnd="26dp"
+                android:layout_marginBottom="@dimen/spacing_lg"
+                android:contentDescription="@string/download_audio_index_hint"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tv_audio_empty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:lineSpacingExtra="3dp"
+                android:paddingStart="@dimen/spacing_xl"
+                android:paddingEnd="@dimen/spacing_xl"
+                android:text="@string/download_audio_empty"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting"
+                android:visibility="gone" />
+
+        </FrameLayout>
+
+        <!--
+          底部操作栏：与主界面底栏共用同一套外观偏好（贴底 / 悬浮 / 玻璃材质），
+          样式由 AudioManagerActivity#applyBarStyle 下发；玻璃开启时材质由 blur 层承载。
+        -->
+        <FrameLayout
+            android:id="@+id/audio_bar_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <com.auramusic.wiki.classic.BackdropBlurView
+                android:id="@+id/audio_bar_blur"
+                android:layout_width="match_parent"
+                android:layout_height="0dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/audio_bar"
+                style="@style/Widget.ClassicWiki.Card.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/nav_float_margin_horizontal"
+                android:layout_marginEnd="@dimen/nav_float_margin_horizontal"
+                android:layout_marginBottom="@dimen/nav_float_margin_bottom"
+                app:cardCornerRadius="@dimen/shape_nav">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="@dimen/spacing_lg"
+                    android:paddingTop="@dimen/spacing_sm"
+                    android:paddingEnd="@dimen/spacing_sm"
+                    android:paddingBottom="@dimen/spacing_sm">
+
+                    <TextView
+                        android:id="@+id/tv_audio_selected"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textAppearance="?attr/textAppearanceTitleSmall"
+                        app:autoSizeMaxTextSize="14sp"
+                        app:autoSizeMinTextSize="11sp"
+                        app:autoSizeStepGranularity="1sp"
+                        app:autoSizeTextType="uniform" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_audio_select_all"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:insetLeft="0dp"
+                        android:insetRight="0dp"
+                        android:minWidth="0dp"
+                        android:text="@string/download_audio_select_all" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_audio_move"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/spacing_xs"
+                        android:insetLeft="0dp"
+                        android:insetRight="0dp"
+                        android:minWidth="0dp"
+                        android:text="@string/download_audio_move"
+                        app:icon="@drawable/ic_folder_open"
+                        app:iconPadding="6dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_audio_delete"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/spacing_xs"
+                        android:insetLeft="0dp"
+                        android:insetRight="0dp"
+                        android:minWidth="0dp"
+                        android:text="@string/download_audio_delete" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </FrameLayout>
+
+    </FrameLayout>
+
+</LinearLayout>

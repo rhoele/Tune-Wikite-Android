@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  设置二级页：显示（Stage 2）
+  - 三个分区的卡片结构不变，分区内的行统一为 Md3ListItemView（双行 + 尾部开关）；
+  - 开关仍是 MD3 原生 MaterialSwitch，改动即时生效并持久化。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        style="@style/Widget.ClassicWiki.Toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorSurface"
+        app:navigationIcon="@drawable/ic_back"
+        app:title="@string/display_title" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false">
+
+        <com.auramusic.wiki.classic.MaxWidthLinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/screen_horizontal_margin"
+            android:paddingTop="@dimen/spacing_sm"
+            android:paddingEnd="@dimen/screen_horizontal_margin"
+            android:paddingBottom="@dimen/spacing_xl">
+
+            <!-- ============ 分区一：列表内容 ============ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:text="@string/settings_section_display"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.FieldLabel" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.ClassicWiki.Card.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/list_item_spacing">
+
+                <LinearLayout
+                    android:id="@+id/group_display_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="@dimen/spacing_lg"
+                    android:paddingEnd="@dimen/spacing_lg">
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/switch_show_covers"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:md3IconTileColor="primary"
+                        app:md3LeadingIcon="@drawable/ic_image"
+                        app:md3Supporting="@string/settings_show_covers_desc"
+                        app:md3Title="@string/settings_show_covers"
+                        app:md3TrailingMode="trailing_switch" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ============ 分区二：页面卡片 ============ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:text="@string/settings_section_display_cards"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.FieldLabel" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.ClassicWiki.Card.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:id="@+id/group_display_cards"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="@dimen/spacing_lg"
+                    android:paddingTop="@dimen/spacing_md"
+                    android:paddingEnd="@dimen/spacing_lg"
+                    android:paddingBottom="@dimen/spacing_md">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_section_display_cards_desc"
+                        android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
+
+                    <com.google.android.material.divider.MaterialDivider
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_md" />
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/switch_show_transport_card"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:md3IconTileColor="secondary"
+                        app:md3LeadingIcon="@drawable/ic_cloud_download"
+                        app:md3Supporting="@string/settings_show_transport_card_desc"
+                        app:md3Title="@string/settings_show_transport_card"
+                        app:md3TrailingMode="trailing_switch" />
+
+                    <com.google.android.material.divider.MaterialDivider
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/switch_show_account_card"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:md3IconTileColor="tertiary"
+                        app:md3LeadingIcon="@drawable/ic_badge"
+                        app:md3Supporting="@string/settings_show_account_card_desc"
+                        app:md3Title="@string/settings_show_account_card"
+                        app:md3TrailingMode="trailing_switch" />
+
+                    <com.google.android.material.divider.MaterialDivider
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/switch_show_search"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:md3IconTileColor="primary"
+                        app:md3LeadingIcon="@drawable/ic_wiki_search_fill"
+                        app:md3Supporting="@string/settings_show_search_desc"
+                        app:md3Title="@string/settings_show_search"
+                        app:md3TrailingMode="trailing_switch" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ============ 分区三：搜索卡片布局 ============ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:layout_marginTop="@dimen/spacing_lg"
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:text="@string/settings_section_search_card"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.FieldLabel" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.ClassicWiki.Card.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:id="@+id/list_search_layout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/spacing_lg" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </com.auramusic.wiki.classic.MaxWidthLinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</LinearLayout>

@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MD3 列表行（单行 / 双行）：前导图标 + 标题 + 辅助说明 + 尾部取值 / chevron / 开关。
+  由 Md3ListItemView 以 <merge> 方式挂载，因此这里不要写根布局宽度与内边距，
+  水平内边距由使用方（卡片内 16dp 或行自身 16dp）决定。
+
+  前导图标统一放在 40dp 圆角色块（底托）里，而不是裸图标：
+  参考 Deadliner / InstallerX 的设置页，色块承担「分类色」的视觉层级，
+  颜色由 Md3ListItemView 按 md3IconTileColor 在运行时染色。
+-->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/tile_item_leading"
+        android:layout_width="@dimen/icon_tile_size"
+        android:layout_height="@dimen/icon_tile_size"
+        android:layout_marginEnd="@dimen/spacing_md"
+        android:importantForAccessibility="no"
+        android:visibility="gone"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerHighest"
+        app:cardCornerRadius="@dimen/shape_md"
+        app:cardElevation="0dp"
+        app:strokeWidth="0dp">
+
+        <ImageView
+            android:id="@+id/iv_item_leading"
+            android:layout_width="@dimen/icon_tile_icon_size"
+            android:layout_height="@dimen/icon_tile_icon_size"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:scaleType="centerInside" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_item_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:textColor="?attr/colorOnSurface" />
+
+        <TextView
+            android:id="@+id/tv_item_supporting"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_xs"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_item_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/spacing_md"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textAppearance="?attr/textAppearanceLabelLarge"
+        android:textColor="?attr/colorPrimary"
+        android:visibility="gone" />
+
+    <!-- 开关型可进入行：内容区与开关之间的竖线（同时是「可进入」与「可切换」的分界） -->
+    <View
+        android:id="@+id/divider_item_action"
+        android:layout_width="1dp"
+        android:layout_height="@dimen/switch_link_divider_height"
+        android:layout_marginStart="@dimen/spacing_md"
+        android:background="?attr/colorOutlineVariant"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/iv_item_chevron"
+        android:layout_width="@dimen/icon_md"
+        android:layout_height="@dimen/icon_md"
+        android:layout_marginStart="@dimen/spacing_xs"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_chevron_right"
+        app:tint="?attr/colorOnSurfaceVariant"
+        android:visibility="gone" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/switch_item"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/spacing_md"
+        android:visibility="gone" />
+
+</merge>

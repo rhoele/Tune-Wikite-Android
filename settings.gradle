@@ -1,0 +1,2 @@
+rootProject.name = "AuraMusicWikiClassic"
+include ':app'

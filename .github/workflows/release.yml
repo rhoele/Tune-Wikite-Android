@@ -1,0 +1,89 @@
+# 正式版 APK 构建与 GitHub Release
+#
+# 说明：本工作流尚未在真实 CI 中运行验证，首次使用前请先在仓库的 Actions 页面手动
+# 触发一次（workflow_dispatch），确认签名、校验和与附件都正确后再打 tag。
+#
+# 需要配置的仓库 Secrets：
+#   KEYSTORE_BASE64      keystore 文件的 Base64（base64 -w0 release.jks）
+#   KEYSTORE_PASSWORD    keystore 口令
+#   KEY_ALIAS            密钥别名
+#   KEY_PASSWORD         密钥口令
+# 可选仓库 Variables：
+#   FCM_SERVER_BASE_URL  推送服务地址（https://…，留空表示不启用推送）
+
+name: Build Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode signing material
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::缺少仓库 Secret KEYSTORE_BASE64，无法生成签名包"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+
+      - name: Build release APK
+        env:
+          FCM_SERVER_BASE_URL: ${{ vars.FCM_SERVER_BASE_URL }}
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Verify signature and checksum
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -f "$APK" || { echo "::error::未找到签名后的 app-release.apk"; exit 1; }
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
+          OUT="KuKuGongJian-${GITHUB_REF_NAME}-release.apk"
+          cp "$APK" "$OUT"
+          sha256sum "$OUT" | tee SHA256SUMS.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: |
+            KuKuGongJian-*-release.apk
+            SHA256SUMS.txt
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            KuKuGongJian-*-release.apk
+            SHA256SUMS.txt
+          body_path: RELEASE_NOTES.md

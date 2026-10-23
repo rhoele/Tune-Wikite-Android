@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Design 3 色彩令牌（深色），与浅色令牌同名覆盖，实现 DayNight 自动切换 -->
+<resources>
+    <!-- Primary -->
+    <color name="md_primary">#FFB3AE</color>
+    <color name="md_on_primary">#690008</color>
+    <color name="md_primary_container">#93000F</color>
+    <color name="md_on_primary_container">#FFDAD7</color>
+    <color name="md_inverse_primary">#B32024</color>
+
+    <!-- Secondary -->
+    <color name="md_secondary">#E7BDB8</color>
+    <color name="md_on_secondary">#442925</color>
+    <color name="md_secondary_container">#5D3F3B</color>
+    <color name="md_on_secondary_container">#FFDAD6</color>
+
+    <!-- Tertiary -->
+    <color name="md_tertiary">#DFC38C</color>
+    <color name="md_on_tertiary">#3F2E04</color>
+    <color name="md_tertiary_container">#57441A</color>
+    <color name="md_on_tertiary_container">#FCDFA6</color>
+
+    <!-- Error -->
+    <color name="md_error">#FFB4AB</color>
+    <color name="md_on_error">#690005</color>
+    <color name="md_error_container">#93000A</color>
+    <color name="md_on_error_container">#FFDAD6</color>
+
+    <!-- Surface / Background -->
+    <color name="md_background">#1A1110</color>
+    <color name="md_on_background">#F1DEDC</color>
+    <color name="md_surface">#1A1110</color>
+    <color name="md_on_surface">#F1DEDC</color>
+    <color name="md_surface_variant">#534341</color>
+    <color name="md_on_surface_variant">#D8C2BF</color>
+    <color name="md_surface_container_low">#231918</color>
+    <color name="md_surface_container">#271D1C</color>
+    <color name="md_surface_container_high">#322826</color>
+    <color name="md_surface_container_highest">#3D3230</color>
+    <color name="md_inverse_surface">#F1DEDC</color>
+    <color name="md_inverse_on_surface">#392E2D</color>
+
+    <!-- Outline -->
+    <color name="md_outline">#A08C8A</color>
+    <color name="md_outline_variant">#534341</color>
+
+    <!-- 外观设置：可选调色板的深色 32 令牌定义见 values-night/palettes.xml -->
+</resources>

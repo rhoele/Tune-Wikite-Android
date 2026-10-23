@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 平板/大屏：双列瀑布，充分利用横向空间 -->
+    <integer name="list_span_count">2</integer>
+</resources>

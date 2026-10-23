@@ -1,0 +1,718 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">曲库共建</string>
+
+    <!-- 顶层导航 -->
+    <string name="nav_wiki">歌曲百科</string>
+    <string name="nav_contributions">我的贡献</string>
+    <string name="back">返回</string>
+
+    <!-- 歌曲百科查询页 -->
+    <string name="wiki_input_hint">歌曲 ID 或网易云分享链接</string>
+    <string name="wiki_query">查询百科</string>
+    <string name="wiki_paste">粘贴</string>
+    <string name="wiki_refresh">刷新</string>
+    <string name="wiki_requery">重新查询</string>
+    <string name="wiki_query_other">查询其他歌曲</string>
+    <string name="wiki_copy_json">复制查询数据</string>
+    <string name="wiki_open_song">打开网易云歌曲页</string>
+    <string name="wiki_open_artist">歌手主页</string>
+    <string name="wiki_open_user">贡献者主页</string>
+    <string name="wiki_history">查询历史</string>
+    <string name="wiki_load_cover">加载封面</string>
+
+    <string name="wiki_loading">正在查询歌曲 %1$s…</string>
+    <string name="wiki_clip_empty">剪贴板为空</string>
+    <string name="wiki_clip_pasted">已粘贴剪贴板内容</string>
+    <string name="wiki_clip_copied">已复制完整 JSON 数据</string>
+    <string name="wiki_clip_label">歌曲百科 JSON</string>
+    <string name="wiki_restored_last">已恢复上次查询</string>
+    <string name="wiki_cleared">已返回查询页</string>
+    <string name="wiki_cancelled">查询已取消</string>
+
+    <string name="wiki_id_invalid">请输入正确的歌曲 ID 或网易云分享链接</string>
+    <string name="wiki_timeout">查询超时，请检查网络后重试</string>
+    <string name="wiki_no_network">无法连接服务器，请检查网络</string>
+    <string name="wiki_failed">查询失败，请重试</string>
+    <string name="wiki_http_error">服务暂时不可用（HTTP %1$d）</string>
+    <string name="wiki_too_large">返回内容过大，请换一首歌曲重试</string>
+    <string name="wiki_not_found">未找到该歌曲的百科数据，请确认歌曲 ID 是否正确</string>
+    <string name="wiki_bad_json">服务器返回数据格式异常</string>
+
+    <string name="wiki_empty_title">输入歌曲 ID 开始查询</string>
+    <string name="wiki_empty_desc">支持纯数字歌曲 ID，或直接粘贴网易云音乐分享链接。</string>
+    <string name="wiki_error_retry">重试</string>
+
+    <!-- 歌曲资料字段 -->
+    <string name="field_song">歌曲</string>
+    <string name="field_artist">歌手</string>
+    <string name="field_song_id">歌曲 ID</string>
+    <string name="field_language">语种</string>
+    <string name="field_bpm">BPM</string>
+    <string name="field_duration">时长</string>
+    <string name="field_release_date">发行日期</string>
+    <string name="field_release_version">发行版本</string>
+    <string name="field_cover_type">原唱类型</string>
+    <string name="field_trans_name">译名</string>
+    <string name="field_genres">曲风</string>
+    <string name="field_moods">情绪标签</string>
+    <string name="field_entertainment">相关作品</string>
+    <string name="field_locks">锁定项目</string>
+    <string name="field_creators">创作者</string>
+
+    <string name="unknown_song">未知歌曲</string>
+    <string name="unknown_creator">匿名贡献者</string>
+    <string name="unknown_time">时间未知</string>
+
+    <string name="section_song_info">歌曲资料</string>
+    <string name="section_creative">创作信息</string>
+    <string name="section_records">贡献记录 · %1$d</string>
+    <string name="records_empty">这首歌暂无公开贡献记录</string>
+    <string name="other_approve">其他贡献</string>
+
+    <!-- 我的贡献列表 -->
+    <string name="contrib_loading">正在加载贡献记录…</string>
+    <string name="contrib_empty_title">暂无贡献记录</string>
+    <string name="contrib_empty_desc">当前分类下还没有你的共建内容，换个分类看看，或稍后再来刷新。</string>
+    <string name="contrib_error_title">加载失败</string>
+    <string name="contrib_error_not_logged_in">登录网易云账号后，即可查看你的曲库共建贡献记录。</string>
+    <string name="contrib_error_network">网络异常，请检查连接后重试</string>
+    <string name="contrib_error_business">服务暂时不可用，请稍后重试</string>
+    <string name="contrib_go_settings">去设置</string>
+    <string name="contrib_go_login">去登录</string>
+
+    <!-- 我的贡献：账号卡片与分页（与原 APK 页面结构一致） -->
+    <string name="contrib_account_title">我的曲库贡献</string>
+    <string name="contrib_uid">UID %1$s</string>
+    <string name="contrib_uid_none">UID -</string>
+    <string name="contrib_stats">贡献 %1$d · 云贝 %2$d</string>
+    <string name="contrib_stats_loading">统计加载中…</string>
+    <string name="contrib_filter_status">审核状态</string>
+    <string name="contrib_link_copied">已复制该条目的分享链接</string>
+
+    <!-- 接口通道（与原 APK 的 Lt1/d 枚举一一对应） -->
+    <string name="contrib_transport_title">接口通道</string>
+    <string name="contrib_transport_desc">自动：先用 App 的 eapi，失败时改用网页版 weapi（网页百科本身使用的方式）。</string>
+    <string name="contrib_transport_auto">自动</string>
+    <string name="contrib_transport_eapi">App 通道 (eapi)</string>
+    <string name="contrib_transport_weapi">网页通道 (weapi)</string>
+
+    <!-- 分页条（与原 APK 的 Lu1/O0 一致） -->
+    <string name="contrib_page_prev">上一页</string>
+    <string name="contrib_page_next">下一页</string>
+    <string name="contrib_page_info">第 %1$d / %2$d 页 · 共 %3$d 条</string>
+    <!-- 分页条中间的展示文案：单行紧凑格式，配合 autoSize 在窄屏自动降字号 -->
+    <string name="contrib_page_info_full">%1$d/%2$d · %3$d条</string>
+
+    <!-- 审核状态：与原 APK Lt1/P;->e 一致（0 / 1 / 4 / 5 / -5） -->
+    <string name="status_pending">待审核</string>
+    <string name="status_auditing">审核中</string>
+    <string name="status_partial">部分通过</string>
+    <string name="status_approved">审核通过</string>
+    <string name="status_rejected">未采纳</string>
+    <string name="status_unknown">状态未知</string>
+
+    <!-- 贡献类型标签：用于「全部」标签页里混排的卡片区分内容类型 -->
+    <string name="contrib_type_album_supplement">补充专辑</string>
+    <string name="contrib_type_song">歌曲</string>
+    <string name="contrib_type_album">专辑</string>
+    <string name="contrib_type_artist">艺人</string>
+    <string name="contrib_type_lyric">歌词</string>
+    <string name="contrib_type_lyric_translation">翻译歌词</string>
+
+    <!-- 登录模块 -->
+    <string name="login_title">登录网易云账号</string>
+    <string name="login_tab_qr">扫码登录</string>
+    <string name="login_tab_cookie">Cookie 登录</string>
+
+    <string name="login_qr_tip">打开「网易云音乐」App → 右上角扫一扫，扫描下方二维码并在手机上确认。</string>
+    <string name="login_qr_loading_key">正在获取二维码…</string>
+    <string name="login_qr_waiting">等待扫码…</string>
+    <string name="login_qr_scanned">已扫码，请在手机上点击「确认登录」</string>
+    <string name="login_qr_expired">二维码已过期，请点击下方按钮刷新</string>
+    <string name="login_qr_confirming">登录中，请稍候…</string>
+    <string name="login_qr_failed">二维码获取失败，请点击下方按钮重试</string>
+    <string name="login_qr_refresh">刷新二维码</string>
+    <string name="login_qr_placeholder">二维码暂不可用</string>
+
+    <string name="login_cookie_label">粘贴 music.163.com 的 Cookie</string>
+    <string name="login_cookie_helper">需包含 MUSIC_U。电脑浏览器登录 music.163.com 后，在开发者工具 → Network → 任意请求的请求头中复制 Cookie。</string>
+    <string name="login_cookie_paste">从剪贴板粘贴</string>
+    <string name="login_cookie_submit">登录</string>
+    <string name="login_cookie_clear">清空</string>
+
+    <string name="login_clip_empty">剪贴板为空</string>
+    <string name="login_pasted">已粘贴剪贴板内容</string>
+    <string name="login_verifying">正在校验登录状态…</string>
+    <string name="login_success">登录成功</string>
+    <string name="login_cancelled">已取消登录</string>
+
+    <string name="login_err_empty">请输入 Cookie</string>
+    <string name="login_err_missing_core">Cookie 中缺少 MUSIC_U，请确认已登录 music.163.com 后重新复制完整 Cookie</string>
+    <string name="login_err_malformed">MUSIC_U 取值异常，请重新复制完整 Cookie</string>
+    <string name="login_err_invalid">Cookie 无效或已过期，请重新获取</string>
+    <string name="login_err_network">网络异常，请检查连接后重试</string>
+    <string name="login_err_timeout">登录超时，请重试</string>
+    <string name="login_err_unknown">登录失败，请重试</string>
+
+    <string name="login_current_account">当前账号</string>
+    <string name="login_not_logged_in">未登录</string>
+    <string name="login_logout">退出登录</string>
+    <string name="login_logout_title">退出登录</string>
+    <string name="login_logout_msg">退出后将无法查看「我的贡献」，后台审核提醒也会停止。确定退出？</string>
+    <string name="login_logout_done">已退出登录</string>
+    <string name="login_account_unknown">网易云用户</string>
+
+    <!-- 设置页（一级目录） -->
+    <string name="settings_title">设置</string>
+    <string name="settings_group_appearance">外观</string>
+    <string name="settings_group_appearance_desc">主题模式、调色板与字体大小</string>
+    <string name="settings_group_notification">通知</string>
+    <string name="settings_group_notification_desc">通知权限检测与测试通知</string>
+    <string name="settings_group_account">账号与凭据</string>
+    <string name="settings_group_account_desc">网易云登录状态与 Cookie 管理</string>
+    <string name="settings_group_audit">后台审核提醒</string>
+    <string name="settings_group_audit_desc">轮询开关与检查周期</string>
+    <string name="settings_group_about">关于</string>
+    <string name="settings_group_about_desc">应用说明与数据边界</string>
+    <string name="settings_group_display">显示</string>
+    <string name="settings_group_display_desc">贡献卡片等内容的展示方式</string>
+
+    <!-- 设置一级目录：动态摘要文案 -->
+    <string name="settings_summary_notification_on">系统通知已开启</string>
+    <string name="settings_summary_notification_off">系统通知未开启，点击前往开启</string>
+    <string name="settings_summary_account_on">已登录：%1$s</string>
+    <string name="settings_summary_account_off">未登录，点击登录网易云账号</string>
+    <string name="settings_summary_audit_on">已开启 · 每 %1$d 分钟检查一次</string>
+    <string name="settings_summary_audit_off">已关闭</string>
+    <string name="settings_summary_appearance">%1$s · %2$s · 字体 %3$s</string>
+    <string name="settings_summary_appearance_stacked">%1$s\n%2$s</string>
+
+    <!-- 设置：账号与凭据（二级页） -->
+    <string name="settings_cookie_section">手动粘贴 Cookie（高级）</string>
+    <string name="settings_cookie_entry_desc">为避免两处输入框状态不一致，Cookie 统一在登录页的「Cookie 登录」标签页填写与校验。支持完整 Cookie、浏览器 JSON、URL 编码文本或仅 MUSIC_U 的值。</string>
+    <string name="settings_cookie_entry_action">前往粘贴 Cookie</string>
+    <string name="settings_cookie_save">保存 Cookie</string>
+    <string name="settings_cookie_saved">Cookie 已保存</string>
+    <string name="settings_cookie_cleared">已清空输入框</string>
+    <string name="settings_account_state_logged_in">已登录：%1$s\n用户 ID：%2$d</string>
+    <string name="settings_cookie_need_login">请先登录后再配置后台审核提醒</string>
+    <string name="settings_interval_saved">轮询周期已更新为 %1$d 分钟</string>
+
+    <!-- 设置：通知 -->
+    <string name="settings_section_notification">系统通知设置与测试</string>
+    <string name="settings_permission_on">系统通知权限：已正常开启\n当歌曲、滚动歌词或翻译出现审核变动时，将正常弹出横幅通知。</string>
+    <string name="settings_permission_off">系统通知权限：未开启\n请点击下方按钮前往系统设置，将通知开关设为允许。</string>
+    <string name="settings_test_notification">立即执行一次系统通知测试</string>
+    <string name="settings_open_system">打开手机系统通知管理设置</string>
+    <string name="settings_notification_sent">测试通知已发送，请下拉通知栏查看</string>
+    <string name="settings_notification_failed">通知发送失败：%1$s</string>
+
+    <!-- 设置：通知（Stage 14 列表行） -->
+    <string name="settings_notification_permission_title">系统通知权限</string>
+    <string name="settings_permission_on_short">审核变动会正常弹出横幅通知</string>
+    <string name="settings_permission_off_short">未允许通知，审核提醒无法送达</string>
+    <string name="settings_permission_value_on">已开启</string>
+    <string name="settings_permission_value_off">未开启</string>
+    <string name="settings_test_notification_title">发送测试通知</string>
+    <string name="settings_test_notification_desc">立即推送一条示例通知，验证通道是否可用</string>
+    <string name="settings_open_system_title">系统通知管理</string>
+    <string name="settings_open_system_desc">打开手机的通知权限设置页</string>
+
+    <!-- 设置：后台审核 -->
+    <string name="settings_section_audit">审核变动自动通知提醒</string>
+    <string name="settings_bg_audit">开启后台自动监听</string>
+    <string name="settings_bg_audit_need_login">未登录时后台监听不会启动，请先登录账号。</string>
+    <string name="settings_bg_audit_desc">审核通过或未采纳时推送提醒</string>
+
+    <!-- 设置：账号与凭据 -->
+    <string name="settings_section_account">账号与凭据</string>
+    <string name="settings_account_logged_in">已登录：%1$s</string>
+    <string name="settings_account_logged_out">当前未登录。登录后可查看「我的贡献」并开启后台审核提醒。</string>
+    <string name="settings_account_login">登录 / 切换账号</string>
+    <string name="settings_account_logout">退出登录</string>
+    <string name="settings_account_logged_out_title">未登录</string>
+    <string name="settings_account_id">用户 ID · %1$d</string>
+    <string name="settings_section_account_credentials">凭据</string>
+    <string name="settings_account_credentials_desc">登录凭据只保存在本机，不会上传到第三方服务器。二维码与 Cookie 两种登录方式统一在登录页完成，避免多处输入框状态不一致。</string>
+    <string name="settings_cookie_label">手动粘贴 Cookie（高级）</string>
+    <string name="settings_cookie_hint">MUSIC_U=xxxx…</string>
+    <string name="settings_save">保存所有设置</string>
+    <string name="settings_saved">设置已保存</string>
+
+    <!-- 设置：关于 -->
+    <string name="settings_section_about">关于</string>
+    <string name="settings_about_desc">曲库共建把日常共建流程收在一处：\n\n• 歌曲百科：免登录按歌曲 ID 或分享链接查询曲库资料、公开贡献与创作信息；\n• 我的贡献：登录后按分类 / 状态浏览个人共建记录，支持搜索、分页与审核结果提醒；\n• 声云下载：解析 SoundCloud 单曲或歌单，下载封面与音频，可直接交接给专辑上传；\n• 专辑上传：多曲目批量选择、拖拽排序、封面裁剪与批量上传，曲风与语种可沿用；\n• 未通过原因：自动归档审核私信里的具体原因，按项目类型分组，可复制完整原因或定位到贡献卡片；\n• 下载与存储：管理封面 / 音频的保存位置、占用、自动清理与批量迁移。\n\n所有凭据仅保存在本机，不会上传到任何第三方服务器；下载文件默认存放在应用专用目录，卸载应用会一并清理。</string>
+    <string name="settings_about_version">版本 %1$s</string>
+    <string name="settings_about_app_name">曲库共建</string>
+    <string name="settings_about_version_title">版本</string>
+
+    <!-- 未通过原因归档 -->
+    <string name="settings_group_reject_reasons">未通过原因</string>
+    <string name="settings_reject_reasons_desc">归档审核未通过的原因，按原因分组</string>
+    <string name="settings_reject_reasons_count">已归档 %1$d 条 · %2$d 类原因</string>
+    <string name="settings_section_download">下载与存储</string>
+    <string name="settings_group_download">下载与存储</string>
+    <string name="settings_download_desc">封面与音频的保存位置、占用和自动清理</string>
+    <string name="settings_summary_download">共 %1$s · 封面 %2$d / 音频 %3$d</string>
+
+    <!-- 下载与存储 -->
+    <string name="download_settings_title">下载与存储</string>
+    <string name="download_usage_title">存储占用</string>
+    <string name="download_stat_covers">封面</string>
+    <string name="download_stat_audio">音频</string>
+    <string name="download_stat_files">%1$d 个文件</string>
+    <string name="download_section_location">保存位置</string>
+    <string name="download_cover_dir">封面目录</string>
+    <string name="download_audio_dir">音频目录</string>
+    <string name="download_section_clean">清理</string>
+    <string name="download_delete_covers">删除全部封面</string>
+    <string name="download_delete_audio">删除全部音频</string>
+    <string name="download_delete_covers_summary">当前占用 %1$s</string>
+    <string name="download_delete_audio_summary">当前占用 %1$s</string>
+    <string name="download_delete_covers_confirm">将删除应用内已下载的全部封面，操作不可撤销。</string>
+    <string name="download_delete_audio_confirm">将删除应用内已下载的全部音频，操作不可撤销。</string>
+    <string name="download_delete_action">删除</string>
+    <string name="download_deleted">已删除</string>
+    <string name="download_auto_threshold">存储用量阈值</string>
+    <string name="download_auto_days">定时清理</string>
+    <string name="download_auto_off">关闭</string>
+    <string name="download_auto_days_value">%1$d 天</string>
+    <string name="download_auto_threshold_desc">开启后点击本行设置上限，达到即清理</string>
+    <string name="download_auto_days_desc">开启后点击本行设置周期，到期即清理</string>
+    <string name="download_threshold_sheet_desc">拖动滑杆设置占用上限，达到后自动清理已下载的封面与音频</string>
+    <string name="download_period_sheet_desc">拖动滑杆设置清理周期，到期后自动清理已下载的封面与音频</string>
+    <string name="download_slider_done">完成</string>
+    <string name="download_audio_sort_time">时间</string>
+    <string name="download_audio_sort_name">名称</string>
+    <string name="download_audio_sort_size">大小</string>
+    <string name="download_audio_sort_asc">当前正序，点击切换为倒序</string>
+    <string name="download_audio_sort_desc">当前倒序，点击切换为正序</string>
+    <string name="download_audio_index_hint">按字母快速索引</string>
+    <string name="download_section_audio">音频管理</string>
+    <string name="download_audio_manager">音频文件管理</string>
+    <string name="download_audio_manager_desc">查看音频元信息、批量迁移到指定文件夹</string>
+    <string name="download_audio_manager_summary">%1$d 个文件 · %2$s</string>
+    <string name="download_note">下载文件保存在应用专用目录，卸载应用会一并清理。选择自定义目录后，新下载会同步导出一份到该目录；自动清理只作用于应用内的副本。</string>
+    <string name="download_audio_title">音频文件</string>
+    <string name="download_audio_empty">还没有下载音频\n在「声云下载」页解析并下载后会出现在这里</string>
+    <string name="download_audio_selected">已选 %1$d / 共 %2$d 项</string>
+    <string name="download_audio_select_all">全选</string>
+    <string name="download_audio_unselect_all">取消全选</string>
+    <string name="download_audio_move">移动到…</string>
+    <string name="download_audio_delete">删除</string>
+    <string name="download_audio_move_done">已迁移 %1$s 个文件</string>
+    <string name="download_audio_deleted">已删除 %1$d 个文件</string>
+    <string name="download_audio_delete_confirm">将删除选中的音频文件，操作不可撤销。</string>
+    <string name="download_audio_meta">%1$s · %2$s</string>
+    <string name="download_audio_meta_time">%1$s · %2$s · %3$s</string>
+    <string name="reject_archive_title">未通过原因</string>
+    <string name="reject_archive_summary">共 %1$d 条通知 · %2$d 类原因</string>
+    <string name="reject_archive_summary_new">共 %1$d 条通知 · %2$d 类原因 · 新增 %3$d 条</string>
+    <string name="reject_archive_new_count">+%1$d</string>
+    <string name="reject_archive_new_badge">新</string>
+    <string name="reject_cat_album">专辑补充</string>
+    <string name="reject_cat_fix_album">纠错 · 专辑</string>
+    <string name="reject_cat_fix_song">纠错 · 单曲</string>
+    <string name="reject_cat_fix_artist">纠错 · 艺人</string>
+    <string name="reject_cat_fix">纠错</string>
+    <string name="reject_cat_fix_lyric">纠错 · 歌词</string>
+    <string name="reject_cat_fix_translation">纠错 · 翻译</string>
+    <string name="reject_cat_lyric">歌词</string>
+    <string name="reject_cat_translation">翻译</string>
+    <string name="reject_cat_other">其它</string>
+    <string name="reject_archive_group_count">%1$d 条</string>
+    <string name="reject_archive_empty">审核未通过后，会自动从「曲库小学妹」的私信里同步原因。\n如果这里还是空的，可以手动扫描一次。</string>
+    <string name="reject_archive_guide_title">用右上角的同步按钮扫描私信</string>
+    <string name="reject_archive_guide_short">短按 · 只同步最新私信</string>
+    <string name="reject_archive_guide_long">长按 · 全量扫描历史记录</string>
+    <string name="reject_archive_sync">同步私信（长按全量同步）</string>
+    <string name="reject_archive_syncing">正在同步…</string>
+    <string name="reject_archive_synced">已同步，新增 %1$d 条</string>
+    <string name="reject_archive_no_new">没有新的未通过原因</string>
+    <string name="reject_archive_sync_failed">同步失败：%1$s</string>
+    <string name="reject_archive_need_login">未登录，无法读取审核私信</string>
+    <string name="reject_archive_sync_full_hint">已开始全量同步，会翻完整个私信会话</string>
+    <string name="reject_archive_copy_reason">已复制原因</string>
+    <string name="reject_archive_copy_reason_action">复制该原因</string>
+    <string name="reject_archive_copy_full">已复制完整原因（名称留空）</string>
+    <string name="reject_archive_copy_raw">已复制该条通知原文</string>
+    <string name="reject_archive_copy_hint">点击原因复制完整原因（名称留空为《》），点击条目复制该条原文，长按条目跳转到贡献卡片</string>
+    <string name="reject_archive_jump_no_album">这条通知没有可定位的贡献目标</string>
+    <string name="contrib_focus_not_found">没有在贡献列表里找到《%1$s》</string>
+    <string name="contrib_focus_locating">正在定位贡献卡片…</string>
+    <string name="reject_archive_subtitle">原因归档自「曲库小学妹」私信，展开可查看对应条目</string>
+    <string name="reject_archive_group_entries">%1$d 条通知</string>
+    <string name="reject_category_section_count">%1$d 条 · %2$d 类原因</string>
+    <string name="reject_archive_expand">展开</string>
+    <string name="reject_archive_collapse">收起</string>
+
+    <!-- 外观设置 -->
+    <string name="appearance_title">外观设置</string>
+    <string name="appearance_section_base">外观基础</string>
+    <string name="appearance_option_haptics_desc">点击、长按与切换使用差异化系统触感。</string>
+    <string name="appearance_section_theme">主题模式</string>
+    <string name="appearance_theme_system">跟随系统</string>
+    <string name="appearance_theme_light">浅色</string>
+    <string name="appearance_theme_dark">深色</string>
+    <string name="appearance_theme_system_desc">自动跟随系统的深浅色设置</string>
+    <string name="appearance_theme_light_desc">始终使用浅色界面</string>
+    <string name="appearance_theme_dark_desc">始终使用深色界面</string>
+    <string name="appearance_section_palette">调色板</string>
+    <string name="appearance_palette_dynamic">跟随系统壁纸</string>
+    <string name="appearance_palette_dynamic_desc">仅 Android 12 及以上可用，未选择时回落到品牌配色</string>
+    <string name="appearance_palette_red">网易红</string>
+    <string name="appearance_palette_blue">靛蓝</string>
+    <string name="appearance_palette_green">青竹</string>
+    <string name="appearance_palette_purple">紫罗兰</string>
+    <string name="appearance_palette_amber">琥珀</string>
+    <string name="appearance_palette_teal">碧波</string>
+    <string name="appearance_palette_coral">珊瑚</string>
+    <string name="appearance_palette_rose">玫瑰</string>
+    <string name="appearance_palette_graphite">石墨</string>
+    <string name="appearance_section_variant">色彩风格</string>
+    <string name="appearance_variant_tonal">标准</string>
+    <string name="appearance_variant_vibrant">鲜明</string>
+    <string name="appearance_variant_expressive">表现</string>
+    <string name="appearance_variant_neutral">中性</string>
+    <string name="appearance_variant_from_wallpaper">系统壁纸只提供一套令牌，已按壁纸主色切换到「%1$s」</string>
+    <string name="appearance_dynamic_variant_note">跟随壁纸只提供标准方案；选择其他方案时会按壁纸主色改用最近的预设种子色。</string>
+    <string name="appearance_section_font">字体大小</string>
+    <string name="appearance_font_small">小</string>
+    <string name="appearance_font_default">标准</string>
+    <string name="appearance_font_large">大</string>
+    <string name="appearance_font_xlarge">超大</string>
+    <string name="appearance_font_preview">预览：曲库共建 · 歌曲百科 · 我的贡献</string>
+    <string name="appearance_applied">外观设置已更新</string>
+    <string name="appearance_dynamic_unavailable">当前系统版本不支持动态取色，已回落为品牌配色</string>
+
+    <!-- 外观：实时预览与显示大小 -->
+    <string name="appearance_preview_title">外观预览</string>
+    <string name="appearance_preview_desc">色卡与示例控件取自当前调色板。</string>
+    <string name="appearance_role_primary">主色</string>
+    <string name="appearance_role_secondary">次色</string>
+    <string name="appearance_role_tertiary">辅色</string>
+    <string name="appearance_role_container">容器</string>
+    <string name="appearance_preview_sample_title">叶惠美</string>
+    <string name="appearance_preview_sample_body">周杰伦 · 2003 · 11 首歌曲</string>
+    <string name="appearance_preview_pill">已通过审核</string>
+    <string name="appearance_display_size">显示大小</string>
+    <string name="appearance_display_size_value">%1$s · %2$d%%</string>
+    <string name="appearance_display_size_desc">统一缩放全部文字，松手生效。</string>
+    <string name="appearance_icon_tiles">彩色图标底托</string>
+    <string name="appearance_icon_tiles_desc">为设置项图标添加柔和的分类色底托。</string>
+    <string name="appearance_row_cards">设置项样式</string>
+    <string name="appearance_row_cards_desc">整卡分组，或每项一张独立圆角卡片。</string>
+    <string name="appearance_row_cards_grouped">整卡分组</string>
+    <string name="appearance_row_cards_separate">独立卡片</string>
+    <string name="appearance_density">列表密度</string>
+    <string name="appearance_density_desc">调整设置行的行高与呼吸感。</string>
+    <string name="appearance_density_compact">紧凑</string>
+    <string name="appearance_density_standard">标准</string>
+    <string name="appearance_density_relaxed">宽松</string>
+
+    <!-- 外观：交互与动效（第二阶段） -->
+    <string name="appearance_section_experience">交互与动效</string>
+    <string name="appearance_motion">动效强度</string>
+    <string name="appearance_motion_desc">控制页面切换与控件过渡的时长与位移幅度，曲线取自 Material 3 官方动效规格。</string>
+    <string name="appearance_motion_off">关闭动效</string>
+    <string name="appearance_motion_standard">标准</string>
+    <string name="appearance_motion_emphasized">强调</string>
+    <string name="appearance_haptics">振动反馈</string>
+    <string name="appearance_haptics_desc">点击、长按、切换与滑动使用差异化的系统触感，关掉后不再有任何振动。</string>
+    <string name="appearance_haptic_level">振动强度</string>
+    <string name="appearance_haptic_light">轻</string>
+    <string name="appearance_haptic_standard">标准</string>
+    <string name="appearance_haptic_strong">强</string>
+    <string name="appearance_nav_style">底部导航栏</string>
+    <string name="appearance_nav_floating">悬浮胶囊</string>
+    <string name="appearance_nav_attached">贴底通栏</string>
+    <string name="appearance_nav_glass">底栏玻璃效果</string>
+    <string name="appearance_nav_glass_none">关闭</string>
+    <string name="appearance_nav_glass_acrylic">亚克力</string>
+    <string name="appearance_nav_glass_liquid">液态玻璃</string>
+    <string name="appearance_option_nav_glass_desc">亚克力为中等模糊；液态玻璃更通透并带高光描边。</string>
+    <string name="appearance_blur">页面切换模糊</string>
+    <string name="appearance_blur_desc">切换页面时对离场内容施加原生模糊（需 Android 12 及以上）。</string>
+    <string name="appearance_blur_unavailable">当前系统不支持硬件模糊，该开关不生效</string>
+    <string name="settings_summary_experience">动效 %1$s · 振动 %2$s · 导航 %3$s</string>
+    <string name="appearance_state_off">关闭</string>
+
+    <!-- 设置：显示（二级页） -->
+    <string name="display_title">显示</string>
+    <string name="settings_section_display">列表内容</string>
+    <string name="settings_show_covers">显示贡献卡片封面</string>
+    <string name="settings_show_covers_desc">开启后优先展示读取成功的资源封面；若全部卡片都读不到封面，将自动隐藏卡片图标。关闭后不再请求封面，所有卡片都不显示图标。</string>
+    <string name="settings_summary_display_on">贡献卡片封面：显示</string>
+    <string name="settings_summary_display_off">贡献卡片封面：隐藏</string>
+    <string name="settings_summary_display_cards">页面卡片 · 通道 %1$s · 账号 %2$s · 搜索 %3$s</string>
+    <string name="settings_summary_display_stacked">%1$s\n%2$s</string>
+    <string name="settings_state_shown">显示</string>
+    <string name="settings_state_hidden">隐藏</string>
+
+    <!-- 显示设置：整块卡片的显隐（需求 3 / 5） -->
+    <string name="settings_section_display_cards">页面卡片</string>
+    <string name="settings_section_display_cards_desc">控制「我的贡献」页顶部的整块卡片是否展示；关闭后下方内容会自动上移填充空出的空间。</string>
+    <string name="settings_show_transport_card">显示接口通道卡片</string>
+    <string name="settings_show_transport_card_desc">「自动 / App 通道 / 网页通道」切换卡片。关闭后页面顶部不再展示该卡片。</string>
+    <string name="settings_show_account_card">显示账号卡片</string>
+    <string name="settings_show_account_card_desc">「我的曲库贡献」标题与账号信息卡片（头像、UID、贡献统计）。</string>
+    <string name="settings_show_search">显示贡献搜索</string>
+    <string name="settings_show_search_desc">账号卡片下方的关键词与日期范围搜索模块。</string>
+
+    <!-- 贡献搜索模块（需求 5） -->
+    <string name="contrib_search_title">搜索贡献</string>
+    <string name="contrib_search_desc">按名称或歌手模糊匹配，并可限定提交日期范围。</string>
+    <string name="contrib_search_keyword_hint">关键词（名称 / 歌手）</string>
+    <string name="contrib_search_date_label">提交日期</string>
+    <string name="contrib_search_date_title">选择提交日期范围</string>
+    <string name="contrib_search_date_from">选择开始日期</string>
+    <string name="contrib_search_date_to">选择结束日期</string>
+    <string name="contrib_search_date_none">不限</string>
+    <string name="contrib_search_date_range">%1$s → %2$s</string>
+    <string name="contrib_search_apply">搜索</string>
+    <string name="contrib_search_reset">重置</string>
+    <string name="contrib_search_compact_hint">关键词</string>
+
+    <!-- 搜索卡片布局模式（普通 / 精简长条） -->
+    <string name="settings_section_search_card">搜索卡片</string>
+    <string name="settings_search_layout_title">布局模式</string>
+    <string name="settings_search_layout_desc">普通为竖向卡片；精简长条把输入框、日期筛选与搜索按钮压缩到一行。</string>
+    <string name="settings_search_layout_normal">普通布局</string>
+    <string name="settings_search_layout_compact">精简长条</string>
+    <string name="contrib_search_clear_keyword">清空关键词</string>
+    <string name="contrib_search_result">已筛选 %1$d 条</string>
+    <string name="contrib_search_scanning">正在检索全部贡献…</string>
+    <string name="contrib_search_progress">正在检索 · 已扫描 %1$d 条</string>
+    <string name="contrib_search_empty_title">没有匹配的贡献</string>
+    <string name="contrib_search_empty_desc">换个关键词，或把日期范围放宽一些再试试。</string>
+
+    <!-- 分页交互组件（需求 4） -->
+    <string name="contrib_page_first">第一页</string>
+    <string name="contrib_page_last">最后一页</string>
+    <string name="contrib_page_current">第 %1$d 页</string>
+    <string name="contrib_page_current_full">第 %1$d / %2$d 页</string>
+    <string name="contrib_page_picker_title">选择页码（共 %1$d 页）</string>
+    <string name="contrib_page_jump_first">跳到第一页</string>
+    <string name="contrib_page_jump_last">跳到最后一页</string>
+
+    <!-- 设置项：点击唤起原生子菜单（需求 1） -->
+    <string name="settings_option_current">当前：%1$s</string>
+    <string name="settings_section_experience_switches">功能开关</string>
+    <string name="settings_section_audit_polling">轮询设置</string>
+    <!-- 设置首页分组标题 -->
+    <string name="settings_section_general">通用</string>
+    <string name="settings_section_account_notify">账号与提醒</string>
+    <string name="settings_section_other">其他</string>
+    <string name="settings_section_account_state">当前账号</string>
+    <string name="settings_section_account_advanced">高级配置</string>
+    <string name="appearance_option_theme_desc">跟随系统、浅色或深色，切换立即生效。</string>
+    <string name="appearance_option_palette_desc">预设调色板，或跟随系统壁纸取色。</string>
+    <string name="appearance_option_font_desc">统一调整全部文字的字号。</string>
+    <string name="appearance_option_motion_desc">控制页面与控件过渡的时长和幅度。</string>
+    <string name="appearance_option_haptic_level_desc">触感力度：轻、标准或强。</string>
+    <string name="appearance_option_nav_desc">悬浮胶囊或贴底通栏。</string>
+    <string name="settings_audit_interval_title">轮询检查周期</string>
+    <string name="settings_audit_interval_desc">后台自动检查审核结果的时间间隔。</string>
+    <string name="settings_audit_interval_slider_desc">拖动调整，间隔越短越及时，但耗电与请求量也越高。推荐 5–15 分钟。</string>
+    <string name="settings_interval_minutes">%1$d 分钟</string>
+    <string name="settings_audit_interval_cost">约每 12 小时 %1$d 次请求</string>
+    <string name="settings_notification_section_state">通知状态</string>
+    <string name="settings_notification_section_test">测试与跳转</string>
+
+    <!-- 后台保活（前台服务 / 持久化任务 / 厂商白名单） -->
+    <string name="settings_section_keep_alive">后台保活</string>
+    <string name="settings_battery_opt_title">电池优化豁免</string>
+    <string name="settings_battery_opt_desc">加入系统电池优化白名单，避免深度休眠时后台监听被冻结。</string>
+    <string name="settings_battery_opt_yes">已豁免</string>
+    <string name="settings_battery_opt_no">未豁免，点击申请</string>
+    <string name="settings_oem_autostart_title">厂商自启动管理</string>
+    <string name="settings_oem_autostart_desc">在系统的自启动列表里允许本应用，否则重启后无法恢复监听。</string>
+    <string name="settings_oem_autostart_desc_os">当前系统：%1$s。在系统的自启动列表里允许本应用，否则重启后无法恢复监听。</string>
+    <string name="settings_oem_action">去设置</string>
+    <string name="settings_oem_autostart_guide">当前系统（%1$s）把自启动列表页设为了系统私有页面，应用无法直接打开。请在系统设置的「应用管理 / 应用信息」中找到本应用，手动允许自启动与后台运行。</string>
+    <string name="settings_oem_autostart_open_details">打开应用详情</string>
+    <string name="settings_keep_alive_hint">保活由三层机制共同保障：前台服务、离线闹钟、系统持久化任务。厂商自启动开关是唯一需要你手动确认的项；「强行停止」后任何方案都会失效，需重新打开应用。</string>
+
+    <!-- ============ 底部导航：声云下载 / 专辑上传 ============ -->
+    <string name="nav_download">声云下载</string>
+    <string name="nav_album_upload">专辑上传</string>
+
+    <!-- ============ 声云资源下载 ============ -->
+    <string name="sc_title">声云资源下载</string>
+    <string name="sc_desc">粘贴 SoundCloud 曲目或 set（播放列表）链接，先抓取母带原封面，再按所选格式下载音源；set 会按曲序批量下载，并可一键传入专辑上传。</string>
+    <string name="sc_link_title">SoundCloud 链接</string>
+    <string name="sc_link_hint">https://soundcloud.com/…</string>
+    <string name="sc_action_resolve">解析信息</string>
+    <string name="sc_action_paste">粘贴</string>
+    <string name="sc_info_title">资源信息</string>
+    <string name="sc_info_empty">尚未解析。粘贴链接后点击「解析信息」。</string>
+    <string name="sc_cover_title">封面</string>
+    <string name="sc_cover_desc">优先 -original 真母带，失败时回退 t1080x1080 / t500x500。</string>
+    <string name="sc_action_download_cover">下载封面</string>
+    <string name="sc_action_download_audio">下载音频</string>
+    <string name="sc_format_title">音源格式</string>
+    <string name="sc_format_desc">格式差异只体现在请求的 downscale 字段；320k 以上为有损转码。</string>
+    <string name="sc_convert_title">转换为 32-bit WAV</string>
+    <string name="sc_convert_desc">下载 m4a-aac-320 后，用 FFmpeg 等价参数 -vn -c:a pcm_s32le -ac 2 转成 32 bit PCM WAV。</string>
+    <string name="sc_handoff_title">传入专辑上传</string>
+    <string name="sc_handoff_desc">把已下载的音频、封面与资料来源填入上传页；set 会按曲序依次添加。</string>
+    <string name="sc_handoff_cover">传入封面</string>
+    <string name="sc_handoff_audio">传入音频</string>
+    <string name="sc_handoff_source">资料来源（声云链接）</string>
+    <string name="sc_source_label">资料来源</string>
+    <string name="sc_handoff_none">请至少勾选一项要传入的内容</string>
+    <string name="sc_action_handoff">传入专辑上传</string>
+    <string name="sc_status_idle">等待操作</string>
+    <string name="sc_set_count">%1$d 首</string>
+    <string name="sc_set_unavailable">%1$d 首不可用</string>
+    <string name="sc_set_preview_only">%1$d 首仅试听</string>
+    <string name="sc_status_set_filtered">共 %1$d 首，%2$d 首不可用、%3$d 首仅试听，将下载 %4$d 首</string>
+    <string name="sc_status_set_all_preview">%1$d 首均只提供试听片段（需 SoundCloud Go+），无法下载完整音频</string>
+    <string name="sc_status_set_preview_partial">已下载 %1$d 首，%2$d 首仅试听已跳过</string>
+    <string name="sc_preview_only_error">该曲目在 SoundCloud 仅提供试听片段（需 Go+），无法获取完整音频</string>
+    <string name="sc_action_download_all">下载全部 %1$d 首</string>
+    <string name="sc_action_preview_only">仅提供试听片段</string>
+    <string name="sc_progress_set">正在下载第 %1$d/%2$d 首… %3$d%%</string>
+    <string name="sc_progress_set_title">第 %1$d/%2$d 首：%3$s</string>
+    <string name="sc_status_set_ok">已下载 %1$d 首</string>
+    <string name="sc_status_set_partial">已下载 %1$d 首，%2$d 首失败</string>
+    <string name="sc_set_empty">播放列表里没有可下载的曲目</string>
+    <string name="sc_set_parse_failed">播放列表解析失败，请检查网络后重试</string>
+    <string name="sc_status_cover_ok">封面已保存：%1$s</string>
+    <string name="sc_status_audio_ok">音频已保存：%1$s</string>
+    <string name="sc_status_convert_ok">WAV 已生成：%1$s</string>
+    <string name="sc_error_no_url">请先粘贴 SoundCloud 链接</string>
+    <string name="sc_error_no_audio">还没有可传入的音频，请先下载</string>
+    <string name="sc_need_format">请选择格式</string>
+    <string name="sc_cover_failed">封面获取失败：%1$s</string>
+    <string name="sc_audio_failed">音源下载失败：%1$s</string>
+    <string name="sc_resolve_failed">解析失败：%1$s</string>
+    <string name="sc_progress_cover">正在抓取封面…</string>
+    <string name="sc_progress_audio">正在下载音频… %1$d%%</string>
+    <string name="sc_progress_convert">正在转换 WAV…</string>
+    <string name="sc_action_retry">重试</string>
+    <string name="sc_no_cover">没有封面</string>
+
+    <!-- ============ 专辑上传 ============ -->
+    <string name="au_title">补充缺失专辑</string>
+    <string name="au_desc">补充网易云缺失的专辑和歌曲，提交后由曲库审核。带 * 为必填项。</string>
+    <string name="au_target_artist">目标艺人 *</string>
+    <string name="au_target_artist_hint">输入艺人名、ID 或艺人链接</string>
+    <string name="au_action_search_artist">搜索艺人</string>
+    <string name="au_cover_title">专辑图片</string>
+    <string name="au_cover_source_title">选择封面来源</string>
+    <string name="au_cover_source_gallery">从图库选择</string>
+    <string name="au_cover_source_storage">从本地文件选择</string>
+    <string name="au_cover_desc">jpg / png，不小于 320×320，小于 20M；提交时会同时上传原图与 1:1 裁剪。</string>
+    <string name="au_cover_add">添加</string>
+    <string name="au_cover_change">更换</string>
+    <string name="au_cover_uploading">封面上传中…</string>
+    <string name="au_cover_uploaded">封面已上传</string>
+    <string name="au_album_info">专辑信息</string>
+    <string name="au_album_name">专辑名 *</string>
+    <string name="au_album_subtitle">副标题</string>
+    <string name="au_album_subtitle_hint">多个副标题用分号分隔</string>
+    <string name="au_album_trans">翻译名</string>
+    <string name="au_album_type">类型 *</string>
+    <string name="au_album_artists">专辑艺人 *</string>
+    <string name="au_action_add_artist">添加艺人</string>
+    <string name="au_company">发行公司 *</string>
+    <string name="au_publish_date">发行时间 *</string>
+    <string name="au_publish_date_hint">选择日期</string>
+    <string name="au_language">语种 *</string>
+    <string name="au_tags">曲风</string>
+    <string name="au_tags_hint">最多选择 3 个</string>
+    <string name="au_options_more_languages">更多语种</string>
+    <string name="au_options_more_tags">展开全部曲风</string>
+    <string name="au_options_collapse">收起</string>
+    <string name="au_tags_loading">正在加载曲风…</string>
+    <string name="au_tags_load_failed">曲风加载失败，点击重试</string>
+    <string name="au_production">制作人</string>
+    <string name="au_source">资料来源 *</string>
+    <string name="au_source_hint">艺人官网、官方介绍或其他可核实来源</string>
+    <string name="au_notes">专辑介绍</string>
+    <string name="au_notes_hint">可填写专辑背景、创作故事或官方介绍，支持多行</string>
+    <string name="au_artist_suggestions">可重新添加</string>
+    <string name="au_company_history">历史记录</string>
+    <string name="au_company_reco">使用目标艺人：%1$s</string>
+    <string name="au_action_close">关闭提示</string>
+    <string name="au_audit_ok_title">已提交审核</string>
+    <string name="au_audit_ok_desc">表单已清空，目标艺人已保留为待选项，可在「我的贡献」查看审核进度。</string>
+    <string name="au_audit_fail_title">提交失败</string>
+    <string name="au_agree">我已阅读并同意《网易云音乐内容发布需知》</string>
+    <string name="au_songs">歌曲列表 *</string>
+    <string name="au_songs_desc">选择音频文件后立即开始上传（单个不超过 500M）。点歌曲可编辑名称、艺人、语种与碟序。</string>
+    <string name="au_action_add_audio">添加音频</string>
+    <string name="au_action_pick_folder">选择文件夹</string>
+    <string name="au_songs_empty">还没有歌曲</string>
+    <string name="au_action_submit">提交审核</string>
+    <string name="au_submit_hint">提交前请确认目标艺人、封面与全部歌曲的音频均已上传完成。</string>
+    <string name="au_song_disc_track">第 %1$d 碟 · 第 %2$d 首</string>
+    <string name="au_song_uploading">上传中 %1$d%%</string>
+    <string name="au_song_uploaded">音频已上传</string>
+    <string name="au_song_failed">音频上传失败</string>
+    <string name="au_dialog_song_title">编辑歌曲</string>
+    <string name="au_song_name">歌曲名 *</string>
+    <string name="au_song_subtitle">副标题</string>
+    <string name="au_song_trans">翻译名</string>
+    <string name="au_song_disc">碟序</string>
+    <string name="au_song_track">曲序</string>
+    <string name="au_song_artists">艺人 *</string>
+    <string name="au_song_language">语种 *</string>
+    <string name="au_song_tags">曲风</string>
+    <string name="au_action_replace_audio">重新选择音频</string>
+    <string name="au_action_remove_song">移除歌曲</string>
+    <string name="au_action_save">保存</string>
+    <string name="au_action_cancel">取消</string>
+    <string name="au_action_remove">移除</string>
+    <string name="au_artist_search_title">选择艺人</string>
+    <string name="au_artist_search_hint">搜索艺人名</string>
+    <string name="au_artist_search_empty">没有找到相关艺人</string>
+    <string name="au_artist_search_failed">搜索艺人失败，请检查网络后重试</string>
+    <string name="link_no_app">未找到可打开该链接的应用</string>
+    <string name="link_open_failed">打开链接失败</string>
+    <string name="au_artist_add_custom">直接添加「%1$s」</string>
+    <string name="au_artist_add_custom_hint">曲库无匹配结果，将以该名称提交</string>
+    <string name="au_artist_suggest">已移除的艺人</string>
+    <string name="au_err_target_artist">请先选择要补充专辑的艺人</string>
+    <string name="au_err_album_name">专辑名必填</string>
+    <string name="au_err_album_artist">专辑艺人必填</string>
+    <string name="au_err_company">发行公司必填</string>
+    <string name="au_err_publish">发行时间必填</string>
+    <string name="au_err_language">语种必填</string>
+    <string name="au_err_type">类型必填</string>
+    <string name="au_err_songs">歌曲列表必填</string>
+    <string name="au_err_tags">最多选择 3 个曲风</string>
+    <string name="au_err_source">资料来源必填</string>
+    <string name="au_err_audio_uploading">歌曲音频尚未全部完成上传，请稍后再提交</string>
+    <string name="au_err_song_fields">有歌曲必填项暂未填写，请填写后重试</string>
+    <string name="au_err_cover_uploading">封面还在上传</string>
+    <string name="au_err_cover_failed">封面上传失败：%1$s</string>
+    <string name="au_err_audio_failed">歌曲上传失败：%1$s</string>
+    <string name="au_err_agreement">请同意《网易云音乐内容发布需知》</string>
+    <string name="au_err_not_login">请先在「设置 → 账号与凭据」登录网易云</string>
+    <string name="au_submitting">正在提交审核…</string>
+    <string name="au_submit_ok">已提交审核，可在「我的贡献」查看进度</string>
+    <string name="au_submit_failed">提交失败：%1$s</string>
+    <string name="au_pick_audio_failed">无法读取所选音频</string>
+    <string name="au_folder_empty">所选文件夹里没有可用的音频</string>
+    <string name="au_cover_pick_failed">无法读取所选图片</string>
+    <string name="au_handoff_loaded">已接收声云下载资源：%1$s</string>
+    <string name="au_handoff_batch"> · 共 %1$d 首</string>
+    <string name="au_pending_remove">已移除，可在选择列表顶部重新添加</string>
+    <string name="au_tag_limit">最多选择 3 个曲风</string>
+    <string name="au_date_pick">选择发行日期</string>
+
+    <!-- 应用内消息（审核结果 / 未读聚合） -->
+    <string name="msg_title">审核消息</string>
+    <string name="msg_empty">暂无未读的审核更新</string>
+    <string name="msg_mark_all_read">全部已读</string>
+    <string name="msg_new_badge">新</string>
+    <string name="msg_unread_count">%1$d 条未读审核更新</string>
+
+    <!-- 封面裁剪 -->
+    <string name="crop_title">调整专辑封面</string>
+    <string name="crop_desc">拖动或双指缩放图片，使其填满 1:1 方框，完成后返回上传页。</string>
+    <string name="crop_done">完成</string>
+</resources>

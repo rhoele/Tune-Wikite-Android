@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 平板 / 大屏尺寸令牌：加大留白，放宽内容宽度 -->
+<resources>
+    <dimen name="screen_horizontal_margin">24dp</dimen>
+    <dimen name="content_max_width">840dp</dimen>
+    <dimen name="card_corner_radius">24dp</dimen>
+    <dimen name="list_item_spacing">16dp</dimen>
+    <dimen name="wiki_cover_size">120dp</dimen>
+    <dimen name="avatar_size">48dp</dimen>
+    <dimen name="state_icon_size">80dp</dimen>
+</resources>

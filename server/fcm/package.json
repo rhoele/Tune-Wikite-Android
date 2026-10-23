@@ -1,0 +1,19 @@
+{
+  "name": "auramusic-fcm-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "曲库共建 FCM 令牌登记与批量推送服务",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "check": "node --check src/index.js && node --check src/token-store.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "firebase-admin": "^13.0.2",
+    "https-proxy-agent": "^7.0.6"
+  }
+}

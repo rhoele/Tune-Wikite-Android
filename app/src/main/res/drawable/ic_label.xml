@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols Rounded · label -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4 20C3.45 20 2.97917 19.8042 2.5875 19.4125C2.19583 19.0208 2 18.55 2 18V6C2 5.45 2.19583 4.97917 2.5875 4.5875C2.97917 4.19583 3.45 4 4 4H15C15.3167 4 15.6167 4.07083 15.9 4.2125C16.1833 4.35417 16.4167 4.55 16.6 4.8L22 12L16.6 19.2C16.4167 19.45 16.1833 19.6458 15.9 19.7875C15.6167 19.9292 15.3167 20 15 20H4ZM4 18H15L19.5 12L15 6H4V18Z" />
+</vector>

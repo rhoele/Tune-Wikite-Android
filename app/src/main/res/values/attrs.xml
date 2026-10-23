@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Md3ListItemView 的 XML 属性。
+      只暴露「内容」类属性；交互与状态（点击、开关监听）仍走 Java setter，
+      避免把业务回调塞进布局。
+    -->
+    <declare-styleable name="Md3ListItemView">
+        <!-- 主标题（单行，BodyLarge） -->
+        <attr name="md3Title" format="string" />
+        <!-- 辅助说明（最多两行，BodyMedium / colorOnSurfaceVariant） -->
+        <attr name="md3Supporting" format="string" />
+        <!-- 尾部取值文案（LabelLarge / colorPrimary） -->
+        <attr name="md3TrailingValue" format="string" />
+        <!-- 前导图标 -->
+        <attr name="md3LeadingIcon" format="reference" />
+        <!--
+          前导图标是否带彩色底托（Expressive 风格）。
+          参考 Deadliner / InstallerX 的设置页：图标放在圆角色块里，而不是裸图标。
+        -->
+        <attr name="md3IconTileColor" format="enum">
+            <enum name="none" value="0" />
+            <enum name="primary" value="1" />
+            <enum name="secondary" value="2" />
+            <enum name="tertiary" value="3" />
+        </attr>
+        <!-- 尾部形态。枚举名会生成同名的 id 资源，不能用 Java 关键字（如 switch） -->
+        <attr name="md3TrailingMode" format="enum">
+            <enum name="none" value="0" />
+            <enum name="chevron" value="1" />
+            <enum name="value" value="2" />
+            <enum name="trailing_switch" value="3" />
+            <enum name="value_plain" value="4" />
+            <enum name="switch_link" value="5" />
+        </attr>
+    </declare-styleable>
+</resources>

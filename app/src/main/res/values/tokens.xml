@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MD3 设计令牌：形状阶 / 密度 / 海拔。
+
+  约定：
+    - 布局只引用令牌，不再写字面量 dp（间距令牌见 dimens.xml）；
+    - 颜色令牌由主题（themes.xml / palettes.xml）提供，不在此重复；
+    - 语义别名（shape_card / shape_field …）指向基础阶，页面优先用语义名，
+      这样后续调整「卡片圆角」时只改一处。
+-->
+<resources>
+
+    <!-- ============ 形状阶（Material 3 shape scale） ============ -->
+    <dimen name="shape_xs">4dp</dimen>
+    <dimen name="shape_sm">8dp</dimen>
+    <dimen name="shape_md">12dp</dimen>
+    <dimen name="shape_lg">16dp</dimen>
+    <dimen name="shape_xl">20dp</dimen>
+    <dimen name="shape_xxl">28dp</dimen>
+    <dimen name="shape_full">999dp</dimen>
+
+    <!-- 语义别名：页面优先使用这些名字 -->
+    <!-- 卡片：沿用 card_corner_radius，大屏（sw600dp）仍有独立覆盖 -->
+    <dimen name="shape_card">@dimen/card_corner_radius</dimen>
+    <dimen name="shape_field">@dimen/shape_md</dimen>
+    <dimen name="shape_sheet">@dimen/shape_xxl</dimen>
+    <dimen name="shape_badge">@dimen/shape_full</dimen>
+    <dimen name="shape_nav">@dimen/nav_float_corner_radius</dimen>
+
+    <!-- ============ 密度 ============ -->
+    <!--
+      设置行行高：单行 56dp / 双行 80dp / 三行 96dp。
+      比 MD3 最低要求（72dp）更宽松，与参考应用列表的呼吸感对齐。
+    -->
+    <dimen name="item_height_one_line">56dp</dimen>
+    <dimen name="item_height_two_line">80dp</dimen>
+    <dimen name="item_height_three_line">96dp</dimen>
+    <!-- 设置行左右内边距（卡片内左右留白） -->
+    <dimen name="settings_row_inset">20dp</dimen>
+    <!-- 最小触控热区（Material 无障碍要求） -->
+    <dimen name="touch_target_min">48dp</dimen>
+    <dimen name="icon_sm">20dp</dimen>
+    <dimen name="icon_md">24dp</dimen>
+    <dimen name="icon_lg">32dp</dimen>
+    <!-- 设置行前导图标的彩色底托尺寸，以及底托内图标尺寸 -->
+    <dimen name="icon_tile_size">36dp</dimen>
+    <dimen name="icon_tile_icon_size">20dp</dimen>
+    <!-- 字段列表左侧标签列宽 -->
+    <dimen name="field_label_width">88dp</dimen>
+    <!-- 列表卡片内的缩略封面 -->
+    <dimen name="list_cover_size">56dp</dimen>
+    <!-- 未读 / 强调态的描边宽度 -->
+    <dimen name="stroke_emphasis">1.5dp</dimen>
+
+    <!-- ============ 海拔 ============ -->
+    <dimen name="elevation_0">0dp</dimen>
+    <dimen name="elevation_1">1dp</dimen>
+    <dimen name="elevation_2">3dp</dimen>
+    <dimen name="elevation_3">6dp</dimen>
+
+</resources>

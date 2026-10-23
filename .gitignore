@@ -1,0 +1,33 @@
+# ---- 构建产物 ----
+.gradle/
+build/
+app/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# ---- 本机配置（含 SDK 路径，因机器而异）----
+local.properties
+
+# ---- 签名材料：绝对不要提交 ----
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+
+# ---- 服务端密钥与依赖 ----
+server/fcm/.env
+server/fcm/data/
+server/fcm/node_modules/
+
+# ---- 临时文件 / 调试产物 ----
+lucida_*.json
+prefs_view.xml
+/*.png
+
+# ---- IDE ----
+.idea/
+*.iml
+.vscode/
+.DS_Store

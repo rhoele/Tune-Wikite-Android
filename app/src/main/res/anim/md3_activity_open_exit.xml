@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 旧页面退场：略微左移并轻微变暗，让新页面成为视觉焦点（不淡到全透明，避免露出窗口底色） -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:interpolator="@android:interpolator/fast_out_linear_in">
+    <alpha
+        android:duration="260"
+        android:fromAlpha="1.0"
+        android:toAlpha="0.92" />
+    <translate
+        android:duration="260"
+        android:fromXDelta="0%"
+        android:toXDelta="-6%" />
+</set>

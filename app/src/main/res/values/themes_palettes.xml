@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  GENERATED FILE - DO NOT EDIT BY HAND.
+  One Theme.ClassicWiki.<Preset> branch per preset palette. Each branch overrides
+  ALL 32 MD3 colour tokens - including the whole surface / background family -
+  so that switching the palette recolours the accent controls AND the app
+  background together. Light/dark values come from values(-night)/palettes.xml.
+-->
+<resources>
+    <style name="Theme.ClassicWiki.Blue" parent="Theme.ClassicWiki">
+        <item name="colorPrimary">@color/palette_blue_primary</item>
+        <item name="colorOnPrimary">@color/palette_blue_on_primary</item>
+        <item name="colorPrimaryContainer">@color/palette_blue_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/palette_blue_on_primary_container</item>
+        <item name="colorPrimaryInverse">@color/palette_blue_inverse_primary</item>
+        <item name="colorSecondary">@color/palette_blue_secondary</item>
+        <item name="colorOnSecondary">@color/palette_blue_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/palette_blue_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/palette_blue_on_secondary_container</item>
+        <item name="colorTertiary">@color/palette_blue_tertiary</item>
+        <item name="colorOnTertiary">@color/palette_blue_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/palette_blue_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/palette_blue_on_tertiary_container</item>
+        <item name="colorError">@color/palette_blue_error</item>
+        <item name="colorOnError">@color/palette_blue_on_error</item>
+        <item name="colorErrorContainer">@color/palette_blue_error_container</item>
+        <item name="colorOnErrorContainer">@color/palette_blue_on_error_container</item>
+        <item name="colorOnBackground">@color/palette_blue_on_background</item>
+        <item name="colorSurface">@color/palette_blue_surface</item>
+        <item name="colorOnSurface">@color/palette_blue_on_surface</item>
+        <item name="colorSurfaceVariant">@color/palette_blue_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/palette_blue_on_surface_variant</item>
+        <item name="colorSurfaceContainerLow">@color/palette_blue_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/palette_blue_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/palette_blue_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/palette_blue_surface_container_highest</item>
+        <item name="colorSurfaceInverse">@color/palette_blue_inverse_surface</item>
+        <item name="colorOnSurfaceInverse">@color/palette_blue_inverse_on_surface</item>
+        <item name="colorOutline">@color/palette_blue_outline</item>
+        <item name="colorOutlineVariant">@color/palette_blue_outline_variant</item>
+        <item name="android:colorBackground">@color/palette_blue_background</item>
+        <item name="android:windowBackground">@color/palette_blue_background</item>
+        <item name="android:statusBarColor">@color/palette_blue_surface</item>
+        <item name="android:navigationBarColor">@color/palette_blue_surface</item>
+    </style>
+
+    <style name="Theme.ClassicWiki.Green" parent="Theme.ClassicWiki">
+        <item name="colorPrimary">@color/palette_green_primary</item>
+        <item name="colorOnPrimary">@color/palette_green_on_primary</item>
+        <item name="colorPrimaryContainer">@color/palette_green_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/palette_green_on_primary_container</item>
+        <item name="colorPrimaryInverse">@color/palette_green_inverse_primary</item>
+        <item name="colorSecondary">@color/palette_green_secondary</item>
+        <item name="colorOnSecondary">@color/palette_green_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/palette_green_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/palette_green_on_secondary_container</item>
+        <item name="colorTertiary">@color/palette_green_tertiary</item>
+        <item name="colorOnTertiary">@color/palette_green_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/palette_green_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/palette_green_on_tertiary_container</item>
+        <item name="colorError">@color/palette_green_error</item>
+        <item name="colorOnError">@color/palette_green_on_error</item>
+        <item name="colorErrorContainer">@color/palette_green_error_container</item>
+        <item name="colorOnErrorContainer">@color/palette_green_on_error_container</item>
+        <item name="colorOnBackground">@color/palette_green_on_background</item>
+        <item name="colorSurface">@color/palette_green_surface</item>
+        <item name="colorOnSurface">@color/palette_green_on_surface</item>
+        <item name="colorSurfaceVariant">@color/palette_green_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/palette_green_on_surface_variant</item>
+        <item name="colorSurfaceContainerLow">@color/palette_green_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/palette_green_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/palette_green_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/palette_green_surface_container_highest</item>
+        <item name="colorSurfaceInverse">@color/palette_green_inverse_surface</item>
+        <item name="colorOnSurfaceInverse">@color/palette_green_inverse_on_surface</item>
+        <item name="colorOutline">@color/palette_green_outline</item>
+        <item name="colorOutlineVariant">@color/palette_green_outline_variant</item>
+        <item name="android:colorBackground">@color/palette_green_background</item>
+        <item name="android:windowBackground">@color/palette_green_background</item>
+        <item name="android:statusBarColor">@color/palette_green_surface</item>
+        <item name="android:navigationBarColor">@color/palette_green_surface</item>
+    </style>
+
+    <style name="Theme.ClassicWiki.Purple" parent="Theme.ClassicWiki">
+        <item name="colorPrimary">@color/palette_purple_primary</item>
+        <item name="colorOnPrimary">@color/palette_purple_on_primary</item>
+        <item name="colorPrimaryContainer">@color/palette_purple_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/palette_purple_on_primary_container</item>
+        <item name="colorPrimaryInverse">@color/palette_purple_inverse_primary</item>
+        <item name="colorSecondary">@color/palette_purple_secondary</item>
+        <item name="colorOnSecondary">@color/palette_purple_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/palette_purple_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/palette_purple_on_secondary_container</item>
+        <item name="colorTertiary">@color/palette_purple_tertiary</item>
+        <item name="colorOnTertiary">@color/palette_purple_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/palette_purple_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/palette_purple_on_tertiary_container</item>
+        <item name="colorError">@color/palette_purple_error</item>
+        <item name="colorOnError">@color/palette_purple_on_error</item>
+        <item name="colorErrorContainer">@color/palette_purple_error_container</item>
+        <item name="colorOnErrorContainer">@color/palette_purple_on_error_container</item>
+        <item name="colorOnBackground">@color/palette_purple_on_background</item>
+        <item name="colorSurface">@color/palette_purple_surface</item>
+        <item name="colorOnSurface">@color/palette_purple_on_surface</item>
+        <item name="colorSurfaceVariant">@color/palette_purple_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/palette_purple_on_surface_variant</item>
+        <item name="colorSurfaceContainerLow">@color/palette_purple_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/palette_purple_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/palette_purple_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/palette_purple_surface_container_highest</item>
+        <item name="colorSurfaceInverse">@color/palette_purple_inverse_surface</item>
+        <item name="colorOnSurfaceInverse">@color/palette_purple_inverse_on_surface</item>
+        <item name="colorOutline">@color/palette_purple_outline</item>
+        <item name="colorOutlineVariant">@color/palette_purple_outline_variant</item>
+        <item name="android:colorBackground">@color/palette_purple_background</item>
+        <item name="android:windowBackground">@color/palette_purple_background</item>
+        <item name="android:statusBarColor">@color/palette_purple_surface</item>
+        <item name="android:navigationBarColor">@color/palette_purple_surface</item>
+    </style>
+
+    <style name="Theme.ClassicWiki.Amber" parent="Theme.ClassicWiki">
+        <item name="colorPrimary">@color/palette_amber_primary</item>
+        <item name="colorOnPrimary">@color/palette_amber_on_primary</item>
+        <item name="colorPrimaryContainer">@color/palette_amber_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/palette_amber_on_primary_container</item>
+        <item name="colorPrimaryInverse">@color/palette_amber_inverse_primary</item>
+        <item name="colorSecondary">@color/palette_amber_secondary</item>
+        <item name="colorOnSecondary">@color/palette_amber_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/palette_amber_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/palette_amber_on_secondary_container</item>
+        <item name="colorTertiary">@color/palette_amber_tertiary</item>
+        <item name="colorOnTertiary">@color/palette_amber_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/palette_amber_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/palette_amber_on_tertiary_container</item>
+        <item name="colorError">@color/palette_amber_error</item>
+        <item name="colorOnError">@color/palette_amber_on_error</item>
+        <item name="colorErrorContainer">@color/palette_amber_error_container</item>
+        <item name="colorOnErrorContainer">@color/palette_amber_on_error_container</item>
+        <item name="colorOnBackground">@color/palette_amber_on_background</item>
+        <item name="colorSurface">@color/palette_amber_surface</item>
+        <item name="colorOnSurface">@color/palette_amber_on_surface</item>
+        <item name="colorSurfaceVariant">@color/palette_amber_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/palette_amber_on_surface_variant</item>
+        <item name="colorSurfaceContainerLow">@color/palette_amber_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/palette_amber_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/palette_amber_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/palette_amber_surface_container_highest</item>
+        <item name="colorSurfaceInverse">@color/palette_amber_inverse_surface</item>
+        <item name="colorOnSurfaceInverse">@color/palette_amber_inverse_on_surface</item>
+        <item name="colorOutline">@color/palette_amber_outline</item>
+        <item name="colorOutlineVariant">@color/palette_amber_outline_variant</item>
+        <item name="android:colorBackground">@color/palette_amber_background</item>
+        <item name="android:windowBackground">@color/palette_amber_background</item>
+        <item name="android:statusBarColor">@color/palette_amber_surface</item>
+        <item name="android:navigationBarColor">@color/palette_amber_surface</item>
+    </style>
+
+    <style name="Theme.ClassicWiki.Teal" parent="Theme.ClassicWiki">
+        <item name="colorPrimary">@color/palette_teal_primary</item>
+        <item name="colorOnPrimary">@color/palette_teal_on_primary</item>
+        <item name="colorPrimaryContainer">@color/palette_teal_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/palette_teal_on_primary_container</item>
+        <item name="colorPrimaryInverse">@color/palette_teal_inverse_primary</item>
+        <item name="colorSecondary">@color/palette_teal_secondary</item>
+        <item name="colorOnSecondary">@color/palette_teal_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/palette_teal_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/palette_teal_on_secondary_container</item>
+        <item name="colorTertiary">@color/palette_teal_tertiary</item>
+        <item name="colorOnTertiary">@color/palette_teal_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/palette_teal_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/palette_teal_on_tertiary_container</item>
+        <item name="colorError">@color/palette_teal_error</item>
+        <item name="colorOnError">@color/palette_teal_on_error</item>
+        <item name="colorErrorContainer">@color/palette_teal_error_container</item>
+        <item name="colorOnErrorContainer">@color/palette_teal_on_error_container</item>
+        <item name="colorOnBackground">@color/palette_teal_on_background</item>
+        <item name="colorSurface">@color/palette_teal_surface</item>
+        <item name="colorOnSurface">@color/palette_teal_on_surface</item>
+        <item name="colorSurfaceVariant">@color/palette_teal_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/palette_teal_on_surface_variant</item>
+        <item name="colorSurfaceContainerLow">@color/palette_teal_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/palette_teal_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/palette_teal_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/palette_teal_surface_container_highest</item>
+        <item name="colorSurfaceInverse">@color/palette_teal_inverse_surface</item>
+        <item name="colorOnSurfaceInverse">@color/palette_teal_inverse_on_surface</item>
+        <item name="colorOutline">@color/palette_teal_outline</item>
+        <item name="colorOutlineVariant">@color/palette_teal_outline_variant</item>
+        <item name="android:colorBackground">@color/palette_teal_background</item>
+        <item name="android:windowBackground">@color/palette_teal_background</item>
+        <item name="android:statusBarColor">@color/palette_teal_surface</item>
+        <item name="android:navigationBarColor">@color/palette_teal_surface</item>
+    </style>
+
+    <style name="Theme.ClassicWiki.Coral" parent="Theme.ClassicWiki">
+        <item name="colorPrimary">@color/palette_coral_primary</item>
+        <item name="colorOnPrimary">@color/palette_coral_on_primary</item>
+        <item name="colorPrimaryContainer">@color/palette_coral_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/palette_coral_on_primary_container</item>
+        <item name="colorPrimaryInverse">@color/palette_coral_inverse_primary</item>
+        <item name="colorSecondary">@color/palette_coral_secondary</item>
+        <item name="colorOnSecondary">@color/palette_coral_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/palette_coral_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/palette_coral_on_secondary_container</item>
+        <item name="colorTertiary">@color/palette_coral_tertiary</item>
+        <item name="colorOnTertiary">@color/palette_coral_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/palette_coral_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/palette_coral_on_tertiary_container</item>
+        <item name="colorError">@color/palette_coral_error</item>
+        <item name="colorOnError">@color/palette_coral_on_error</item>
+        <item name="colorErrorContainer">@color/palette_coral_error_container</item>
+        <item name="colorOnErrorContainer">@color/palette_coral_on_error_container</item>
+        <item name="colorOnBackground">@color/palette_coral_on_background</item>
+        <item name="colorSurface">@color/palette_coral_surface</item>
+        <item name="colorOnSurface">@color/palette_coral_on_surface</item>
+        <item name="colorSurfaceVariant">@color/palette_coral_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/palette_coral_on_surface_variant</item>
+        <item name="colorSurfaceContainerLow">@color/palette_coral_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/palette_coral_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/palette_coral_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/palette_coral_surface_container_highest</item>
+        <item name="colorSurfaceInverse">@color/palette_coral_inverse_surface</item>
+        <item name="colorOnSurfaceInverse">@color/palette_coral_inverse_on_surface</item>
+        <item name="colorOutline">@color/palette_coral_outline</item>
+        <item name="colorOutlineVariant">@color/palette_coral_outline_variant</item>
+        <item name="android:colorBackground">@color/palette_coral_background</item>
+        <item name="android:windowBackground">@color/palette_coral_background</item>
+        <item name="android:statusBarColor">@color/palette_coral_surface</item>
+        <item name="android:navigationBarColor">@color/palette_coral_surface</item>
+    </style>
+
+    <style name="Theme.ClassicWiki.Rose" parent="Theme.ClassicWiki">
+        <item name="colorPrimary">@color/palette_rose_primary</item>
+        <item name="colorOnPrimary">@color/palette_rose_on_primary</item>
+        <item name="colorPrimaryContainer">@color/palette_rose_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/palette_rose_on_primary_container</item>
+        <item name="colorPrimaryInverse">@color/palette_rose_inverse_primary</item>
+        <item name="colorSecondary">@color/palette_rose_secondary</item>
+        <item name="colorOnSecondary">@color/palette_rose_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/palette_rose_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/palette_rose_on_secondary_container</item>
+        <item name="colorTertiary">@color/palette_rose_tertiary</item>
+        <item name="colorOnTertiary">@color/palette_rose_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/palette_rose_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/palette_rose_on_tertiary_container</item>
+        <item name="colorError">@color/palette_rose_error</item>
+        <item name="colorOnError">@color/palette_rose_on_error</item>
+        <item name="colorErrorContainer">@color/palette_rose_error_container</item>
+        <item name="colorOnErrorContainer">@color/palette_rose_on_error_container</item>
+        <item name="colorOnBackground">@color/palette_rose_on_background</item>
+        <item name="colorSurface">@color/palette_rose_surface</item>
+        <item name="colorOnSurface">@color/palette_rose_on_surface</item>
+        <item name="colorSurfaceVariant">@color/palette_rose_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/palette_rose_on_surface_variant</item>
+        <item name="colorSurfaceContainerLow">@color/palette_rose_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/palette_rose_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/palette_rose_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/palette_rose_surface_container_highest</item>
+        <item name="colorSurfaceInverse">@color/palette_rose_inverse_surface</item>
+        <item name="colorOnSurfaceInverse">@color/palette_rose_inverse_on_surface</item>
+        <item name="colorOutline">@color/palette_rose_outline</item>
+        <item name="colorOutlineVariant">@color/palette_rose_outline_variant</item>
+        <item name="android:colorBackground">@color/palette_rose_background</item>
+        <item name="android:windowBackground">@color/palette_rose_background</item>
+        <item name="android:statusBarColor">@color/palette_rose_surface</item>
+        <item name="android:navigationBarColor">@color/palette_rose_surface</item>
+    </style>
+
+    <style name="Theme.ClassicWiki.Graphite" parent="Theme.ClassicWiki">
+        <item name="colorPrimary">@color/palette_graphite_primary</item>
+        <item name="colorOnPrimary">@color/palette_graphite_on_primary</item>
+        <item name="colorPrimaryContainer">@color/palette_graphite_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/palette_graphite_on_primary_container</item>
+        <item name="colorPrimaryInverse">@color/palette_graphite_inverse_primary</item>
+        <item name="colorSecondary">@color/palette_graphite_secondary</item>
+        <item name="colorOnSecondary">@color/palette_graphite_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/palette_graphite_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/palette_graphite_on_secondary_container</item>
+        <item name="colorTertiary">@color/palette_graphite_tertiary</item>
+        <item name="colorOnTertiary">@color/palette_graphite_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/palette_graphite_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/palette_graphite_on_tertiary_container</item>
+        <item name="colorError">@color/palette_graphite_error</item>
+        <item name="colorOnError">@color/palette_graphite_on_error</item>
+        <item name="colorErrorContainer">@color/palette_graphite_error_container</item>
+        <item name="colorOnErrorContainer">@color/palette_graphite_on_error_container</item>
+        <item name="colorOnBackground">@color/palette_graphite_on_background</item>
+        <item name="colorSurface">@color/palette_graphite_surface</item>
+        <item name="colorOnSurface">@color/palette_graphite_on_surface</item>
+        <item name="colorSurfaceVariant">@color/palette_graphite_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/palette_graphite_on_surface_variant</item>
+        <item name="colorSurfaceContainerLow">@color/palette_graphite_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/palette_graphite_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/palette_graphite_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/palette_graphite_surface_container_highest</item>
+        <item name="colorSurfaceInverse">@color/palette_graphite_inverse_surface</item>
+        <item name="colorOnSurfaceInverse">@color/palette_graphite_inverse_on_surface</item>
+        <item name="colorOutline">@color/palette_graphite_outline</item>
+        <item name="colorOutlineVariant">@color/palette_graphite_outline_variant</item>
+        <item name="android:colorBackground">@color/palette_graphite_background</item>
+        <item name="android:windowBackground">@color/palette_graphite_background</item>
+        <item name="android:statusBarColor">@color/palette_graphite_surface</item>
+        <item name="android:navigationBarColor">@color/palette_graphite_surface</item>
+    </style>
+
+</resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols Rounded · priority_high -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12 21C11.45 21 10.9792 20.8042 10.5875 20.4125C10.1958 20.0208 10 19.55 10 19C10 18.45 10.1958 17.9792 10.5875 17.5875C10.9792 17.1958 11.45 17 12 17C12.55 17 13.0208 17.1958 13.4125 17.5875C13.8042 17.9792 14 18.45 14 19C14 19.55 13.8042 20.0208 13.4125 20.4125C13.0208 20.8042 12.55 21 12 21ZM10 15V3H14V15H10Z" />
+</vector>

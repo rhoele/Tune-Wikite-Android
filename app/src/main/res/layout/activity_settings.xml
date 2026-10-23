@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  设置一级目录（Stage 2）：由「6 张大卡片」改为「3 个分组 + MD3 列表行」。
+
+  结构变化只影响呈现，入口与跳转目标完全不变：
+    通用         → 外观 / 显示
+    账号与提醒   → 账号与凭据 / 通知 / 后台审核提醒
+    其他         → 关于
+
+  行高 72dp（双行）/ 56dp（单行），摘要在 Java 中按配置实时刷新。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        style="@style/Widget.ClassicWiki.Toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorSurface"
+        app:navigationIcon="@drawable/ic_back"
+        app:title="@string/settings_title" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false">
+
+        <com.auramusic.wiki.classic.MaxWidthLinearLayout
+            android:id="@+id/settings_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/screen_horizontal_margin"
+            android:paddingTop="@dimen/spacing_sm"
+            android:paddingEnd="@dimen/screen_horizontal_margin"
+            android:paddingBottom="@dimen/spacing_xl">
+
+            <!-- ============ 通用 ============ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:text="@string/settings_section_general"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.GroupLabel" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.ClassicWiki.Card.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/list_item_spacing">
+
+                <LinearLayout
+                    android:id="@+id/group_general"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/entry_appearance"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="@dimen/settings_row_inset"
+                        android:paddingEnd="@dimen/settings_row_inset"
+                        app:md3IconTileColor="primary"
+                        app:md3LeadingIcon="@drawable/ic_palette"
+                        app:md3Title="@string/settings_group_appearance"
+                        app:md3TrailingMode="chevron" />
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/entry_display"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="@dimen/settings_row_inset"
+                        android:paddingEnd="@dimen/settings_row_inset"
+                        app:md3IconTileColor="secondary"
+                        app:md3LeadingIcon="@drawable/ic_dashboard"
+                        app:md3Title="@string/settings_group_display"
+                        app:md3TrailingMode="chevron" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ============ 下载与存储 ============ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:layout_marginTop="@dimen/spacing_xl"
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:text="@string/settings_section_download"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.GroupLabel" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.ClassicWiki.Card.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/list_item_spacing">
+
+                <LinearLayout
+                    android:id="@+id/group_download"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/entry_download"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="@dimen/settings_row_inset"
+                        android:paddingEnd="@dimen/settings_row_inset"
+                        app:md3IconTileColor="primary"
+                        app:md3LeadingIcon="@drawable/ic_storage"
+                        app:md3Supporting="@string/settings_download_desc"
+                        app:md3Title="@string/settings_group_download"
+                        app:md3TrailingMode="chevron" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ============ 账号与提醒 ============ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:layout_marginTop="@dimen/spacing_xl"
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:text="@string/settings_section_account_notify"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.GroupLabel" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.ClassicWiki.Card.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/list_item_spacing">
+
+                <LinearLayout
+                    android:id="@+id/group_account_notify"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/entry_account"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="@dimen/settings_row_inset"
+                        android:paddingEnd="@dimen/settings_row_inset"
+                        app:md3IconTileColor="tertiary"
+                        app:md3LeadingIcon="@drawable/ic_account"
+                        app:md3Title="@string/settings_group_account"
+                        app:md3TrailingMode="chevron" />
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/entry_notification"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="@dimen/settings_row_inset"
+                        android:paddingEnd="@dimen/settings_row_inset"
+                        app:md3IconTileColor="primary"
+                        app:md3LeadingIcon="@drawable/ic_notifications"
+                        app:md3Title="@string/settings_group_notification"
+                        app:md3TrailingMode="chevron" />
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/entry_audit"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="@dimen/settings_row_inset"
+                        android:paddingEnd="@dimen/settings_row_inset"
+                        app:md3IconTileColor="secondary"
+                        app:md3LeadingIcon="@drawable/ic_sync"
+                        app:md3Title="@string/settings_group_audit"
+                        app:md3TrailingMode="chevron" />
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/entry_reject_reasons"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="@dimen/settings_row_inset"
+                        android:paddingEnd="@dimen/settings_row_inset"
+                        app:md3IconTileColor="tertiary"
+                        app:md3LeadingIcon="@drawable/ic_report"
+                        app:md3Supporting="@string/settings_reject_reasons_desc"
+                        app:md3Title="@string/settings_group_reject_reasons"
+                        app:md3TrailingMode="chevron" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ============ 其他 ============ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:layout_marginTop="@dimen/spacing_xl"
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:text="@string/settings_section_other"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.GroupLabel" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.ClassicWiki.Card.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:id="@+id/group_other"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/entry_about"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="@dimen/settings_row_inset"
+                        android:paddingEnd="@dimen/settings_row_inset"
+                        app:md3IconTileColor="tertiary"
+                        app:md3LeadingIcon="@drawable/ic_info"
+                        app:md3Title="@string/settings_group_about"
+                        app:md3TrailingMode="chevron" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </com.auramusic.wiki.classic.MaxWidthLinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</LinearLayout>

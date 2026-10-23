@@ -1,0 +1,116 @@
+plugins {
+    id 'com.android.application'
+}
+
+/*
+ * Firebase 条件化接入。
+ *
+ * google-services.json 必须由 Firebase 控制台导出，属于项目级配置（含项目 ID / API Key），
+ * 不能凭空生成。因此这里只在文件存在时才应用插件：
+ *   - 未提供时：工程照常构建，FcmManager 会判定为「未配置」并跳过所有 FCM 调用；
+ *   - 放入 app/google-services.json 后：插件自动注入资源，FCM 立即生效，无需改代码。
+ */
+if (file('google-services.json').exists()) {
+    apply plugin: 'com.google.gms.google-services'
+}
+
+android {
+    namespace 'com.auramusic.wiki.classic'
+    compileSdk 35
+
+    // 签名配置从仓库外的 keystore.properties 读取（该文件不得提交到源码仓库）；
+    // CI 场景可用环境变量注入（KEYSTORE_FILE / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD）。
+    // 两者都未提供时 release 仍可构建，但产物是未签名包，不能用于分发。
+    def keystoreFile = rootProject.file('keystore.properties')
+    def keystore = new Properties()
+    if (keystoreFile.exists()) {
+        keystoreFile.withInputStream { keystore.load(it) }
+    }
+    def signingStoreFile = keystoreFile.exists() ? keystore['storeFile'] : System.getenv('KEYSTORE_FILE')
+    def signingStorePassword = keystoreFile.exists() ? keystore['storePassword'] : System.getenv('KEYSTORE_PASSWORD')
+    def signingKeyAlias = keystoreFile.exists() ? keystore['keyAlias'] : System.getenv('KEY_ALIAS')
+    def signingKeyPassword = keystoreFile.exists() ? keystore['keyPassword'] : System.getenv('KEY_PASSWORD')
+    def signingReady = signingStoreFile != null && !signingStoreFile.toString().trim().isEmpty()
+
+    defaultConfig {
+        applicationId "com.auramusic.wiki.classic"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+
+        // 自有推送服务的基地址。正式包只接受构建时显式注入的 HTTPS 地址，
+        // 缺省为空表示不上报令牌（见下方 buildTypes）。
+        buildConfigField "String", "FCM_SERVER_BASE_URL", "\"\""
+    }
+
+    signingConfigs {
+        if (signingReady) {
+            release {
+                storeFile rootProject.file(signingStoreFile.toString())
+                storePassword signingStorePassword
+                keyAlias signingKeyAlias
+                keyPassword signingKeyPassword
+            }
+        }
+    }
+
+    buildFeatures {
+        // 需要 BuildConfig.FCM_SERVER_BASE_URL
+        buildConfig true
+    }
+
+    buildTypes {
+        debug {
+            // 本地联调默认指向 adb reverse 的本机地址，可用 -PFCM_SERVER_BASE_URL 覆盖
+            def debugFcm = project.findProperty('FCM_SERVER_BASE_URL') ?: 'http://127.0.0.1:8787'
+            buildConfigField "String", "FCM_SERVER_BASE_URL", "\"${debugFcm}\""
+        }
+        release {
+            if (signingReady) {
+                signingConfig signingConfigs.release
+            }
+            // 正式包内置明文地址会被 Android 的明文策略拦截（targetSdk 28+ 默认禁止），
+            // 表现为令牌永远上报不上去，因此这里只接受显式的 HTTPS 地址。
+            def releaseFcm = project.findProperty('FCM_SERVER_BASE_URL') ?: ''
+            if (!releaseFcm.startsWith('https://')) {
+                releaseFcm = ''
+            }
+            buildConfigField "String", "FCM_SERVER_BASE_URL", "\"${releaseFcm}\""
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    testOptions {
+        // 解析容错路径会调用 android.util.Log；桩实现返回默认值而非抛 "not mocked"
+        unitTests.returnDefaultValues = true
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.13.0'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.core:core:1.12.0'
+    // 原生下拉刷新：圆形旋转加载指示器 + 平台标准的下拉手势（需求 2）
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+    // 预见性返回：OnBackPressedCallback 的手势进度回调（BackEventCompat）自 1.8.0 起提供
+    implementation 'androidx.activity:activity:1.8.0'
+    // 二维码登录：纯 Java 的 QR 编码内核（无 Android 依赖，体积小）
+    implementation 'com.google.zxing:core:3.5.3'
+    // 选择文件夹批量导入音频（SAF 文档树）
+    implementation 'androidx.documentfile:documentfile:1.0.1'
+
+    // FCM：用 BOM 统一版本，避免 messaging 与底层的传递依赖版本漂移
+    implementation platform('com.google.firebase:firebase-bom:33.7.0')
+    implementation 'com.google.firebase:firebase-messaging'
+
+    // 纯逻辑单元测试（ID 归一化 / JSON 映射 / 历史读写 / Cookie 规整）
+    testImplementation 'junit:junit:4.13.2'
+    // 为 JVM 测试提供真实的 org.json 实现（Android 桩实现会抛 not mocked）
+    testImplementation 'org.json:json:20231013'
+}

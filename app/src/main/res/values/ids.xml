@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 底栏目的地 id（自绘 ExpressiveNavBar 使用，与菜单项语义一致） -->
+    <item name="nav_download" type="id" />
+    <item name="nav_album_upload" type="id" />
+    <item name="nav_wiki" type="id" />
+    <item name="nav_contributions" type="id" />
+    <!-- 顶栏「提交审核」动作，仅在专辑上传页显示 -->
+    <item name="action_submit_album" type="id" />
+    <!-- 顶栏「审核消息」聚合入口（带未读角标） -->
+    <item name="action_messages" type="id" />
+</resources>

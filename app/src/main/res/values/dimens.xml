@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MD3 间距与尺寸令牌：统一采用 4dp 栅格 -->
+<resources>
+    <dimen name="spacing_xs">4dp</dimen>
+    <dimen name="spacing_sm">8dp</dimen>
+    <dimen name="spacing_md">12dp</dimen>
+    <dimen name="spacing_lg">16dp</dimen>
+    <dimen name="spacing_xl">24dp</dimen>
+
+    <!-- 屏幕水平边距 -->
+    <dimen name="screen_horizontal_margin">16dp</dimen>
+    <!-- 大屏下内容区最大宽度，避免超宽屏一行的文字过长 -->
+    <dimen name="content_max_width">640dp</dimen>
+
+    <dimen name="card_corner_radius">24dp</dimen>
+    <dimen name="list_item_spacing">12dp</dimen>
+
+    <dimen name="wiki_cover_size">96dp</dimen>
+    <dimen name="avatar_size">40dp</dimen>
+    <dimen name="state_icon_size">64dp</dimen>
+    <dimen name="toolbar_height">?attr/actionBarSize</dimen>
+    <!-- 贡献列表区域最小高度：列表为空 / 加载中时占位区不至于被顶部信息挤扁 -->
+    <dimen name="contrib_list_min_height">240dp</dimen>
+
+    <!--
+      悬浮式底部导航栏：M3 Expressive 观感 —— 比通栏更窄的浮动胶囊 + 更大的圆角。
+      高度 60dp 用于容纳「图标 + 文字」的整块选中底板，仍远大于 48dp 最小触控热区。
+    -->
+    <dimen name="nav_float_margin_horizontal">20dp</dimen>
+    <dimen name="nav_float_margin_bottom">8dp</dimen>
+    <dimen name="nav_float_corner_radius">28dp</dimen>
+    <dimen name="nav_float_elevation">3dp</dimen>
+    <dimen name="nav_item_height">60dp</dimen>
+    <!-- 图标 24dp：与 MD3 导航栏规范一致 -->
+    <dimen name="nav_item_icon_size">24dp</dimen>
+
+    <!-- 开关型可进入行：内容与开关之间的竖线高度 -->
+    <dimen name="switch_link_divider_height">24dp</dimen>
+</resources>

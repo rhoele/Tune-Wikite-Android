@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 基础网络权限 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Android 13+ 通知权限 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- 后台保活与轮询服务权限 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!--
+      保活：申请加入系统电池优化白名单（Doze 豁免）
+    -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!--
+      包可见性（Android 11+）：后台审核提醒里的「厂商自启动管理」需要以显式组件
+      拉起各 ROM 的管家页面，未声明的包会被系统判定为不存在而直接跳转失败。
+    -->
+    <queries>
+        <package android:name="com.miui.securitycenter" />
+        <package android:name="com.huawei.systemmanager" />
+        <package android:name="com.coloros.safecenter" />
+        <package android:name="com.oplus.safecenter" />
+        <package android:name="com.oplus.battery" />
+        <package android:name="com.coloros.phonemanager" />
+        <package android:name="com.vivo.permissionmanager" />
+        <package android:name="com.iqoo.secure" />
+        <package android:name="com.meizu.safe" />
+        <package android:name="com.samsung.android.lool" />
+        <package android:name="com.oneplus.security" />
+        <package android:name="com.oppo.safe" />
+        <package android:name="com.asus.mobilemanager" />
+        <package android:name="com.letv.android.letvsafe" />
+        <package android:name="com.mediatek.duraspeed" />
+        <package android:name="com.transsion.phonemaster" />
+        <package android:name="com.htc.pitroad" />
+    </queries>
+
+    <!--
+      enableOnBackInvokedCallback：Android 13+ 预见性返回（Predictive Back）原生适配。
+      开启后系统在返回手势期间即接管窗口动画，与 App 内的返回动画连成一体；
+      低于 Android 13 的系统会忽略该属性，行为回落到传统 finish()。
+    -->
+    <!--
+      allowBackup=false：凭据（MUSIC_U）与下载文件都落在应用私有目录，一旦允许系统备份，
+      它们会进入云端备份 / 换机迁移，与「凭据仅保存在本机」的产品承诺冲突，故整体关闭备份。
+    -->
+    <application
+        android:name=".WikiApp"
+        android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.ClassicWiki"
+        tools:targetApi="33">
+
+        <!--
+          FCM 默认通知配置：服务端若发送 notification 字段，系统代显时使用此渠道与图标。
+          本应用的 data-only 消息由 FcmMessagingService 自行构建通知，同样复用该渠道。
+        -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="fcm_push" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_wiki_book" />
+
+        <!-- FCM 消息接收与令牌刷新 -->
+        <service
+            android:name=".FcmMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- 主界面：包含顶部原生 Toolbar（右上角齿轮设置图标）与经典 TabLayout -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 登录页：Web 端二维码扫码 + Cookie 粘贴双通道，登录态持久化由 SessionManager 承担 -->
+        <activity
+            android:name=".LoginActivity"
+            android:exported="false"
+            android:label="@string/login_title"
+            android:parentActivityName=".MainActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- 设置一级目录：分类清晰的二级入口 -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_title"
+            android:parentActivityName=".MainActivity" />
+
+        <!-- 设置二级页：外观（MD3 主题 / 调色板 / 字体大小） -->
+        <activity
+            android:name=".AppearanceSettingsActivity"
+            android:exported="false"
+            android:label="@string/appearance_title"
+            android:parentActivityName=".SettingsActivity" />
+
+        <!-- 设置二级页：通知 -->
+        <activity
+            android:name=".NotificationSettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_group_notification"
+            android:parentActivityName=".SettingsActivity" />
+
+        <!-- 设置二级页：账号与凭据 -->
+        <activity
+            android:name=".AccountSettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_group_account"
+            android:parentActivityName=".SettingsActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- 设置二级页：后台审核提醒 -->
+        <activity
+            android:name=".AuditSettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_group_audit"
+            android:parentActivityName=".SettingsActivity" />
+
+        <!-- 设置二级页：关于 -->
+        <activity
+            android:name=".AboutSettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_group_about"
+            android:parentActivityName=".SettingsActivity" />
+
+        <!-- 未通过原因归档：按原因分组浏览 / 复制审核私信 -->
+        <activity
+            android:name=".RejectReasonsActivity"
+            android:exported="false"
+            android:label="@string/reject_archive_title"
+            android:parentActivityName=".SettingsActivity" />
+
+
+        <!-- 设置二级页：显示（贡献卡片封面开关，需求 4） -->
+        <activity
+            android:name=".DisplaySettingsActivity"
+            android:exported="false"
+            android:label="@string/display_title"
+            android:parentActivityName=".SettingsActivity" />
+
+        <!-- 设置二级页：下载与存储（保存位置 / 占用 / 清理 / 音频管理） -->
+        <activity
+            android:name=".DownloadSettingsActivity"
+            android:exported="false"
+            android:label="@string/download_settings_title"
+            android:parentActivityName=".SettingsActivity" />
+
+        <!-- 下载音频文件管理：元信息列表与批量迁移 -->
+        <activity
+            android:name=".AudioManagerActivity"
+            android:exported="false"
+            android:label="@string/download_audio_title"
+            android:parentActivityName=".DownloadSettingsActivity" />
+
+        <!-- 专辑封面 1:1 裁剪 -->
+        <activity
+            android:name=".CoverCropActivity"
+            android:exported="false"
+            android:label="@string/crop_title"
+            android:parentActivityName=".MainActivity" />
+
+        <!-- 后台审核结果轮询服务：定时检测网易云贡献状态，变动即弹系统通知 -->
+        <service
+            android:name=".AuditPollingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!--
+          持久化保活任务：setPersisted(true) 的 Job 由系统保存，重启后自动重新调度。
+          它不依赖 BOOT_COMPLETED 广播，是本应用开机恢复最可靠的一层。
+        -->
+        <service
+            android:name=".KeepAliveJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <!--
+          离线审核提醒（需求 3）：进程未运行 / 已被回收时由闹钟唤醒一轮检查。
+          - BOOT_COMPLETED / MY_PACKAGE_REPLACED：受保护的系统广播，用于重启 / 覆盖安装后续订闹钟
+          - 闹钟触发走「显式 Intent」（PendingIntent 已指定组件），无需在此声明 action，
+            以免被外部应用以隐式广播触发无谓的网络检查
+        -->
+        <receiver
+            android:name=".AuditAlarmReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>

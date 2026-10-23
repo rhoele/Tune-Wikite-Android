@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Design 3 主题：DayNight 自动明暗切换，配合 WikiApp 动态取色（Android 12+） -->
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="Theme.ClassicWiki" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/md_primary</item>
+        <item name="colorOnPrimary">@color/md_on_primary</item>
+        <item name="colorPrimaryContainer">@color/md_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/md_on_primary_container</item>
+        <item name="colorSecondary">@color/md_secondary</item>
+        <item name="colorOnSecondary">@color/md_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/md_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/md_on_secondary_container</item>
+        <item name="colorTertiary">@color/md_tertiary</item>
+        <item name="colorOnTertiary">@color/md_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/md_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/md_on_tertiary_container</item>
+        <item name="colorError">@color/md_error</item>
+        <item name="colorOnError">@color/md_on_error</item>
+        <item name="colorErrorContainer">@color/md_error_container</item>
+        <item name="colorOnErrorContainer">@color/md_on_error_container</item>
+        <item name="android:colorBackground">@color/md_background</item>
+        <item name="colorOnBackground">@color/md_on_background</item>
+        <item name="colorSurface">@color/md_surface</item>
+        <item name="colorOnSurface">@color/md_on_surface</item>
+        <item name="colorSurfaceVariant">@color/md_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/md_on_surface_variant</item>
+        <item name="colorSurfaceContainerLow">@color/md_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/md_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/md_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/md_surface_container_highest</item>
+        <item name="colorOutline">@color/md_outline</item>
+        <item name="colorOutlineVariant">@color/md_outline_variant</item>
+        <item name="colorOnSurfaceInverse">@color/md_inverse_on_surface</item>
+        <item name="colorSurfaceInverse">@color/md_inverse_surface</item>
+        <item name="colorPrimaryInverse">@color/md_inverse_primary</item>
+
+        <item name="android:windowBackground">@color/md_background</item>
+        <item name="android:statusBarColor">@color/md_surface</item>
+        <item name="android:navigationBarColor">@color/md_surface</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+
+        <!-- 页面层级跳转动画（第二阶段）：淡入淡出 + 轻微位移，曲线取自系统 fast_out_slow_in -->
+        <item name="android:windowAnimationStyle">@style/Animation.ClassicWiki.Activity</item>
+
+        <!-- Expressive：开关拇指带勾选图标、滑杆使用厚轨道、弹窗 28dp 大圆角 -->
+        <item name="materialSwitchStyle">@style/Widget.ClassicWiki.Switch</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.ClassicWiki.MaterialAlertDialog</item>
+        <!-- 顶栏加高，给 28sp 大标题留出呼吸空间（所有页面统一） -->
+        <item name="actionBarSize">64dp</item>
+    </style>
+
+    <!-- 开关：选中时拇指内显示勾选（与参考应用一致） -->
+    <style name="Widget.ClassicWiki.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="thumbIcon">@drawable/ic_check</item>
+        <!-- 选中态拇指是 onPrimary（浅色），勾选需用 primary 才对比得出来 -->
+        <item name="thumbIconTint">?attr/colorPrimary</item>
+    </style>
+
+    <!--
+      滑块：M3 Expressive 规格（material 1.13 起支持）
+      16dp 厚轨道 + 4×32dp 胶囊拇指 + 拇指与轨道 6dp 间隙 + 4dp 端点指示点。
+    -->
+    <style name="Widget.ClassicWiki.Slider.Expressive" parent="Widget.Material3.Slider">
+        <item name="trackHeight">16dp</item>
+        <item name="trackCornerRadius">8dp</item>
+        <item name="thumbWidth">4dp</item>
+        <item name="thumbHeight">32dp</item>
+        <item name="thumbTrackGapSize">6dp</item>
+        <item name="trackStopIndicatorSize">4dp</item>
+        <item name="thumbColor">?attr/colorPrimary</item>
+        <item name="trackColorActive">?attr/colorPrimary</item>
+        <item name="trackColorInactive">?attr/colorSurfaceContainerHighest</item>
+        <item name="haloColor">@android:color/transparent</item>
+        <item name="haloRadius">0dp</item>
+        <item name="labelBehavior">gone</item>
+    </style>
+
+    <!-- 弹窗：Expressive 的 28dp 圆角 -->
+    <style name="ThemeOverlay.ClassicWiki.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.ClassicWiki.Dialog</item>
+    </style>
+
+    <style name="ShapeAppearance.ClassicWiki.Dialog" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">28dp</item>
+    </style>
+
+    <!-- 页面层级跳转的窗口动画：进入 / 退出 / 返回三组，方向与系统返回手势一致 -->
+    <style name="Animation.ClassicWiki.Activity" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/md3_activity_open_enter</item>
+        <item name="android:activityOpenExitAnimation">@anim/md3_activity_open_exit</item>
+        <item name="android:activityCloseEnterAnimation">@anim/md3_activity_close_enter</item>
+        <item name="android:activityCloseExitAnimation">@anim/md3_activity_close_exit</item>
+    </style>
+
+    <!--
+      外观设置：可选调色板的主题分支见 themes_palettes.xml（构建期由 Material HCT 生成）。
+      每个分支覆盖全部 32 个 MD3 色彩令牌，primary/secondary/tertiary 家族与
+      surface/background 家族同步切换，从而控件色与应用背景色一起生效。
+    -->
+
+    <!-- 顶栏：Expressive 的大标题工具条（28sp 标题 + 64dp 高度） -->
+    <style name="Widget.ClassicWiki.Toolbar" parent="Widget.Material3.Toolbar.OnSurface">
+        <item name="titleTextAppearance">@style/TextAppearance.ClassicWiki.Headline</item>
+    </style>
+
+    <style name="TextAppearance.ClassicWiki.Headline" parent="TextAppearance.Material3.HeadlineMedium">
+    </style>
+
+    <!-- 区块标题（卡片内小标题） -->
+    <style name="TextAppearance.ClassicWiki.SectionTitle" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <!-- 分组标签（卡片外的小标题）：Expressive 里用强调色 + 加粗，形成明确层级 -->
+    <style name="TextAppearance.ClassicWiki.GroupLabel" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.01</item>
+    </style>
+
+    <!-- 字段：标签 -->
+    <style name="TextAppearance.ClassicWiki.FieldLabel" parent="TextAppearance.Material3.LabelMedium">
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <!-- 字段：取值 -->
+    <style name="TextAppearance.ClassicWiki.FieldValue" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <!-- 辅助说明文字 -->
+    <style name="TextAppearance.ClassicWiki.Supporting" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <!-- 圆角形状：封面 / 头像 -->
+    <style name="ShapeAppearance.ClassicWiki.Cover" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+
+    <style name="ShapeAppearance.ClassicWiki.Avatar" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <!-- 查询输入框：MD3 轮廓样式 + 统一内边距 -->
+    <style name="Widget.ClassicWiki.TextInput" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">@dimen/shape_field</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/shape_field</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/shape_field</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/shape_field</item>
+    </style>
+
+    <!--
+      卡片样式：页面统一引用这三个样式，不再各自叠加 cardCornerRadius。
+      取值与改造前完全一致（填充 / 海拔 / 描边三种 MD3 卡片 + 统一圆角），
+      因此属于「零视觉差异」的令牌化，不改变现有观感。
+    -->
+    <style name="Widget.ClassicWiki.Card.Filled" parent="Widget.Material3.CardView.Filled">
+        <item name="cardCornerRadius">@dimen/shape_card</item>
+        <!-- 行内水波纹按卡片圆角裁剪，避免首/末行按下时溢出成矩形；
+             android:clipToOutline 属性仅在 API 31+ 生效，低版本忽略该项（不崩溃） -->
+        <item name="android:clipToOutline" tools:ignore="NewApi">true</item>
+    </style>
+
+    <style name="Widget.ClassicWiki.Card.Elevated" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardCornerRadius">@dimen/shape_card</item>
+        <item name="android:clipToOutline" tools:ignore="NewApi">true</item>
+    </style>
+
+    <style name="Widget.ClassicWiki.Card.Outlined" parent="Widget.Material3.CardView.Outlined">
+        <item name="cardCornerRadius">@dimen/shape_card</item>
+        <item name="android:clipToOutline" tools:ignore="NewApi">true</item>
+    </style>
+
+    <!--
+      主题模式：Expressive 三列分段选择。
+      未选中为「直角 + 1dp 描边」，选中为「圆角矩形 + primaryContainer」；
+      两种形态之间的圆角由 Activity 补间（施加 / 撤销动效），因此样式里不写固定圆角。
+    -->
+    <style name="Widget.ClassicWiki.ThemeSegment" parent="Widget.Material3.CardView.Outlined">
+        <item name="cardCornerRadius">0dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">?attr/colorOutline</item>
+        <item name="cardBackgroundColor">@android:color/transparent</item>
+        <item name="rippleColor">?attr/colorControlHighlight</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <!--
+      分页「上一页 / 下一页」：Expressive 的图标按钮。
+      改为图标而非文字后，中间页码可以获得完整宽度；按钮本身用 FilledTonal 的
+      圆形主色容器，与底栏选中底板的视觉语言一致。
+    -->
+    <style name="Widget.ClassicWiki.PagerIcon" parent="Widget.Material3.Button.IconButton.Filled.Tonal">
+        <item name="android:minWidth">48dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:padding">12dp</item>
+        <item name="iconSize">24dp</item>
+    </style>
+</resources>

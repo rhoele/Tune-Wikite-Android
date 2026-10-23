@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 返回时下层页面复位：从轻微左移与变暗状态恢复 -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:interpolator="@android:interpolator/fast_out_slow_in">
+    <alpha
+        android:duration="240"
+        android:fromAlpha="0.92"
+        android:toAlpha="1.0" />
+    <translate
+        android:duration="240"
+        android:fromXDelta="-6%"
+        android:toXDelta="0%" />
+</set>

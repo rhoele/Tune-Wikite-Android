@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  设置二级页：后台审核提醒（需求 1）
+  分类分级：功能开关（开关 + 说明）/ 轮询设置（点击唤起原生单选子菜单选择周期），
+  区块之间使用 MaterialDivider 分隔，逐项带详细说明文本。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        style="@style/Widget.ClassicWiki.Toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorSurface"
+        app:navigationIcon="@drawable/ic_back"
+        app:title="@string/settings_group_audit" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false">
+
+        <com.auramusic.wiki.classic.MaxWidthLinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/screen_horizontal_margin"
+            android:paddingTop="@dimen/spacing_sm"
+            android:paddingEnd="@dimen/screen_horizontal_margin"
+            android:paddingBottom="@dimen/spacing_xl">
+
+            <!-- ============ 分区一：功能开关 ============ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:text="@string/settings_section_experience_switches"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.FieldLabel" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.ClassicWiki.Card.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/list_item_spacing">
+
+                <LinearLayout
+                    android:id="@+id/group_audit_switch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="@dimen/spacing_lg"
+                    android:paddingEnd="@dimen/spacing_lg">
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/switch_background_audit"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:md3IconTileColor="primary"
+                        app:md3LeadingIcon="@drawable/ic_sync"
+                        app:md3Supporting="@string/settings_bg_audit_need_login"
+                        app:md3Title="@string/settings_bg_audit"
+                        app:md3TrailingMode="trailing_switch" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ============ 分区二：轮询设置 ============ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:text="@string/settings_section_audit_polling"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.FieldLabel" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.ClassicWiki.Card.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="@dimen/card_corner_radius">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/spacing_lg">
+
+                    <!-- 轮询周期：MD3 Slider，拖动即时显示取值，松手后保存并重启轮询 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/settings_audit_interval_title"
+                            android:textAppearance="?attr/textAppearanceBodyLarge" />
+
+                        <TextView
+                            android:id="@+id/tv_interval_value"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="?attr/textAppearanceTitleMedium"
+                            android:textColor="?attr/colorPrimary" />
+
+                    </LinearLayout>
+
+                    <com.google.android.material.slider.Slider
+                        android:id="@+id/slider_interval"
+                        style="@style/Widget.ClassicWiki.Slider.Expressive"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:stepSize="5"
+                        android:valueFrom="5"
+                        android:valueTo="120"
+                        app:labelBehavior="floating" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_audit_interval_slider_desc"
+                        android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
+
+                    <TextView
+                        android:id="@+id/tv_interval_cost"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ============ 分区三：后台保活 ============ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:layout_marginTop="@dimen/spacing_lg"
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:text="@string/settings_section_keep_alive"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.FieldLabel" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.ClassicWiki.Card.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:id="@+id/group_keep_alive"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="@dimen/spacing_lg"
+                    android:paddingEnd="@dimen/spacing_lg">
+
+                    <!-- 电池优化豁免 / 厂商自启动入口：取值在 onResume 刷新 -->
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/row_battery_opt"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:md3IconTileColor="secondary"
+                        app:md3LeadingIcon="@drawable/ic_battery_charging_full"
+                        app:md3Supporting="@string/settings_battery_opt_desc"
+                        app:md3Title="@string/settings_battery_opt_title"
+                        app:md3TrailingMode="value" />
+
+                    <com.google.android.material.divider.MaterialDivider
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/row_oem_autostart"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:md3IconTileColor="tertiary"
+                        app:md3LeadingIcon="@drawable/ic_bolt"
+                        app:md3Supporting="@string/settings_oem_autostart_desc"
+                        app:md3Title="@string/settings_oem_autostart_title"
+                        app:md3TrailingMode="value" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:layout_marginTop="@dimen/spacing_sm"
+                android:text="@string/settings_keep_alive_hint"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
+
+        </com.auramusic.wiki.classic.MaxWidthLinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</LinearLayout>

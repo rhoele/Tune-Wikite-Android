@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <!-- 顶栏右侧设置入口：矢量齿轮图标，随主题着色，48dp 触摸热区由 Toolbar action 保证 -->
+    <item
+        android:id="@+id/action_settings"
+        android:icon="@drawable/ic_settings"
+        android:title="@string/settings_title"
+        app:showAsAction="always" />
+</menu>

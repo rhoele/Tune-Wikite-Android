@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 手机：单列列表 -->
+    <integer name="list_span_count">1</integer>
+
+    <!--
+      MD3 动效时长令牌（毫秒）。
+      motion_control / motion_destination 保持改造前的 220 / 300，
+      以「零视觉差异」方式承接 MotionManager 的硬编码常量；
+      其余档位供后续页面升级使用。
+    -->
+    <integer name="motion_short_1">50</integer>
+    <integer name="motion_short_2">100</integer>
+    <integer name="motion_short_3">150</integer>
+    <integer name="motion_short_4">200</integer>
+    <integer name="motion_medium_1">250</integer>
+    <integer name="motion_medium_2">300</integer>
+    <integer name="motion_medium_3">350</integer>
+    <integer name="motion_long_1">400</integer>
+    <integer name="motion_long_2">500</integer>
+    <!-- 业务语义：控件级过渡 / 页面目的地切换 -->
+    <integer name="motion_control">220</integer>
+    <integer name="motion_destination">300</integer>
+</resources>

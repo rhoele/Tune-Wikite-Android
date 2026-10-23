@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols Rounded · gavel -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4 21V19H16V21H4ZM9.65 16.15L4 10.5L6.1 8.35L11.8 14L9.65 16.15ZM16 9.8L10.35 4.1L12.5 2L18.15 7.65L16 9.8ZM20.6 20L7.55 6.95L8.95 5.55L22 18.6L20.6 20Z" />
+</vector>

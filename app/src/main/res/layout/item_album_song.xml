@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 歌曲行：左侧拖拽手柄，右侧标题 / 碟序曲序 / 上传进度；点击整行打开编辑。 -->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="@dimen/spacing_sm"
+    android:clipToOutline="true"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp"
+    app:strokeColor="?attr/colorOutlineVariant"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:minHeight="64dp"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/spacing_sm"
+        android:paddingTop="@dimen/spacing_sm"
+        android:paddingEnd="@dimen/spacing_md"
+        android:paddingBottom="@dimen/spacing_sm">
+
+        <ImageView
+            android:id="@+id/iv_song_drag"
+            android:layout_width="40dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/au_song_track"
+            android:padding="8dp"
+            android:src="@drawable/ic_drag"
+            app:tint="?attr/colorOnSurfaceVariant" />
+
+        <LinearLayout
+            android:id="@+id/song_body"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/spacing_xs"
+            android:paddingEnd="@dimen/spacing_xs">
+
+            <TextView
+                android:id="@+id/tv_song_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="?attr/textAppearanceBodyLarge" />
+
+            <TextView
+                android:id="@+id/tv_song_meta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/pb_song"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_xs"
+                android:max="100"
+                android:visibility="gone"
+                app:trackCornerRadius="2dp"
+                app:trackThickness="3dp" />
+
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/iv_song_state"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="@dimen/spacing_sm"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_check_circle"
+            android:visibility="gone"
+            app:tint="?attr/colorPrimary" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

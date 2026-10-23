@@ -1,0 +1,426 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  声云资源下载页：
+    SoundCloud 链接 → 元数据解析 → 封面（scimg 母带原图）/ 音源（lucida.to）
+    → 可选 32 bit WAV 转换 → 一键传入「专辑上传」。
+  根布局为可滚动容器，底部为覆盖式导航栏留出额外 padding（由代码补）。
+-->
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/sc_scroll"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:fillViewport="true"
+    android:overScrollMode="always">
+
+    <com.auramusic.wiki.classic.MaxWidthLinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/screen_horizontal_margin"
+        android:paddingTop="@dimen/spacing_md"
+        android:paddingEnd="@dimen/screen_horizontal_margin"
+        android:paddingBottom="@dimen/spacing_xl">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/sc_title"
+            android:textAppearance="@style/TextAppearance.ClassicWiki.SectionTitle" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_xs"
+            android:layout_marginBottom="@dimen/spacing_md"
+            android:text="@string/sc_desc"
+            android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
+
+        <!-- 链接输入 -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.ClassicWiki.Card.Filled"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/list_item_spacing">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/spacing_lg">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/sc_link_title"
+                    android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/til_sc_url"
+                    style="@style/Widget.ClassicWiki.TextInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_sm"
+                    android:hint="@string/sc_link_hint"
+                    app:endIconMode="clear_text"
+                    app:startIconDrawable="@drawable/ic_link">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/et_sc_url"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="top|start"
+                        android:inputType="textUri|textMultiLine"
+                        android:maxLines="4"
+                        android:minLines="1"
+                        android:overScrollMode="ifContentScrolls"
+                        android:scrollbars="vertical" />
+
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_sm"
+                    android:gravity="end"
+                    android:orientation="horizontal">
+
+                    <!-- 与歌曲百科的「粘贴」保持一致：描边按钮 + 粘贴图标 -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_sc_paste"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sc_action_paste"
+                        app:icon="@drawable/ic_wiki_paste" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_sc_resolve"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/spacing_sm"
+                        android:text="@string/sc_action_resolve" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- 资源信息 -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.ClassicWiki.Card.Filled"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/list_item_spacing">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/spacing_lg">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/sc_info_title"
+                    android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:orientation="horizontal">
+
+                    <FrameLayout
+                        android:layout_width="112dp"
+                        android:layout_height="112dp">
+
+                        <ImageView
+                            android:id="@+id/iv_sc_cover"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="?attr/colorSurfaceContainerHighest"
+                            android:contentDescription="@string/sc_cover_title"
+                            android:scaleType="centerCrop"
+                            android:src="@drawable/ic_image_muted" />
+
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/spacing_lg"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tv_sc_title"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:fontFamily="@font/app_display"
+                            android:maxLines="2"
+                            android:text="@string/sc_info_empty"
+                            android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                        <TextView
+                            android:id="@+id/tv_sc_artist"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_xs"
+                            android:fontFamily="@font/app_display"
+                            android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/tv_sc_duration"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_xs"
+                            android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/tv_sc_cover_source"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_xs"
+                            android:fontFamily="@font/app_display"
+                            android:text="@string/sc_no_cover"
+                            android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- 下载设置 -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.ClassicWiki.Card.Filled"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/list_item_spacing">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/spacing_lg">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/sc_format_title"
+                    android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_xs"
+                    android:text="@string/sc_format_desc"
+                    android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/til_sc_format"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_sm">
+
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/act_sc_format"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="none"
+                        android:maxLines="1"
+                        android:singleLine="true" />
+
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/sc_convert_title"
+                            android:textAppearance="?attr/textAppearanceBodyLarge" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="@string/sc_convert_desc"
+                            android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
+
+                    </LinearLayout>
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switch_sc_convert"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/spacing_md"
+                        android:minWidth="@dimen/touch_target_min" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- 下载操作与进度 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/spacing_sm"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_sc_cover"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:minHeight="@dimen/touch_target_min"
+                android:text="@string/sc_action_download_cover"
+                app:icon="@drawable/ic_photo_library" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_sc_audio"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_sm"
+                android:layout_weight="1"
+                android:minHeight="@dimen/touch_target_min"
+                android:text="@string/sc_action_download_audio"
+                app:icon="@drawable/ic_cloud_download" />
+
+        </LinearLayout>
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/pb_sc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_sm"
+            android:indeterminate="true"
+            android:visibility="invisible"
+            app:trackCornerRadius="2dp"
+            app:trackThickness="4dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_sm"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_sc_status"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:accessibilityLiveRegion="polite"
+                android:includeFontPadding="false"
+                android:maxLines="2"
+                android:minLines="2"
+                android:text="@string/sc_status_idle"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_sc_retry"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_target_min"
+                android:text="@string/sc_action_retry"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- 传入专辑上传 -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.ClassicWiki.Card.Filled"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_md">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/spacing_lg">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/sc_handoff_title"
+                    android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_xs"
+                    android:text="@string/sc_handoff_desc"
+                    android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
+
+                <!-- 封面 / 音频 / 资料来源独立勾选：用户可以只传其中一部分 -->
+                <com.google.android.material.checkbox.MaterialCheckBox
+                    android:id="@+id/cb_sc_handoff_cover"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_sm"
+                    android:checked="true"
+                    android:minHeight="@dimen/touch_target_min"
+                    android:text="@string/sc_handoff_cover" />
+
+                <com.google.android.material.checkbox.MaterialCheckBox
+                    android:id="@+id/cb_sc_handoff_audio"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:minHeight="@dimen/touch_target_min"
+                    android:text="@string/sc_handoff_audio" />
+
+                <com.google.android.material.checkbox.MaterialCheckBox
+                    android:id="@+id/cb_sc_handoff_source"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="@dimen/touch_target_min"
+                    android:text="@string/sc_handoff_source" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_sc_handoff"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:enabled="false"
+                    android:minHeight="@dimen/touch_target_min"
+                    android:text="@string/sc_action_handoff"
+                    app:icon="@drawable/ic_album_upload" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </com.auramusic.wiki.classic.MaxWidthLinearLayout>
+
+</androidx.core.widget.NestedScrollView>

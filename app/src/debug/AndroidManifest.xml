@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  仅 debug 构建生效：允许明文 HTTP。
+  本地联调时 FCM_SERVER_BASE_URL 指向 http://127.0.0.1:8787（adb reverse），
+  Android 9+ 默认禁止明文流量，需在此显式放开。
+  release 构建不包含本文件，线上仍强制 HTTPS。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application android:usesCleartextTraffic="true" />
+
+</manifest>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols Rounded · translate -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11.85 22L16.4 10H18.5L23.05 22H20.95L19.875 18.95H15.025L13.95 22H11.85ZM3.95001 19L2.55001 17.6L7.60001 12.55C7.01668 11.9667 6.48751 11.3 6.01251 10.55C5.53751 9.8 5.10001 8.95 4.70001 8H6.80001C7.13335 8.65 7.46668 9.21667 7.80001 9.7C8.13335 10.1833 8.53335 10.6667 9.00001 11.15C9.55001 10.6 10.1208 9.82917 10.7125 8.8375C11.3042 7.84583 11.75 6.9 12.05 6H0.950012V4H7.95001V2H9.95001V4H16.95V6H14.05C13.7 7.2 13.175 8.43333 12.475 9.7C11.775 10.9667 11.0833 11.9333 10.4 12.6L12.8 15.05L12.05 17.1L9.00001 13.975L3.95001 19ZM15.65 17.2H19.25L17.45 12.1L15.65 17.2Z" />
+</vector>

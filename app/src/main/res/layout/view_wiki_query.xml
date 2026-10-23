@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  歌曲百科查询页（对应基准 F1–F14 主链路）：
+  输入 → 归一化 → 请求 → 四态渲染（内容 / 加载 / 空态 / 错误）→ 历史 / 复制 / 外链。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical">
+
+    <!-- 搜索区 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/screen_horizontal_margin"
+        android:paddingTop="@dimen/spacing_lg"
+        android:paddingEnd="@dimen/screen_horizontal_margin"
+        android:paddingBottom="@dimen/spacing_sm">
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/til_query"
+            style="@style/Widget.ClassicWiki.TextInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/wiki_input_hint"
+            app:endIconMode="clear_text">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_query"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:maxLines="1" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_sm"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_query"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/wiki_query"
+                app:icon="@drawable/ic_wiki_search" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_paste"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_sm"
+                android:text="@string/wiki_paste"
+                app:icon="@drawable/ic_wiki_paste" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- ① 内容态 -->
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/content_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:fillViewport="true"
+            android:visibility="gone">
+
+            <com.auramusic.wiki.classic.MaxWidthLinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:orientation="vertical"
+                android:paddingBottom="@dimen/spacing_xl">
+
+                <!-- 歌曲头部卡片 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/header_card"
+                    style="@style/Widget.ClassicWiki.Card.Filled"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/screen_horizontal_margin"
+                    android:layout_marginEnd="@dimen/screen_horizontal_margin">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/spacing_lg">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.imageview.ShapeableImageView
+                                android:id="@+id/iv_song_cover"
+                                android:layout_width="@dimen/wiki_cover_size"
+                                android:layout_height="@dimen/wiki_cover_size"
+                                android:background="?attr/colorSurfaceContainerHighest"
+                                android:contentDescription="@string/field_song"
+                                android:scaleType="centerCrop"
+                                android:src="@drawable/ic_album_muted"
+                                app:shapeAppearanceOverlay="@style/ShapeAppearance.ClassicWiki.Cover" />
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/spacing_lg"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/tv_song_name"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:ellipsize="end"
+                                    android:fontFamily="@font/app_display"
+                                    android:maxLines="2"
+                                    android:textAppearance="?attr/textAppearanceHeadlineSmall"
+                                    android:text="@string/unknown_song" />
+
+                                <TextView
+                                    android:id="@+id/tv_song_artist"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/spacing_xs"
+                                    android:ellipsize="end"
+                                    android:fontFamily="@font/app_display"
+                                    android:maxLines="2"
+                                    android:textAppearance="?attr/textAppearanceBodyMedium"
+                                    android:textColor="?attr/colorOnSurfaceVariant" />
+
+                                <TextView
+                                    android:id="@+id/tv_song_id"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/spacing_xs"
+                                    android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
+
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                        <!-- 操作按钮区 -->
+                        <HorizontalScrollView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/spacing_md"
+                            android:scrollbars="none">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btn_open_song"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/wiki_open_song"
+                                    app:icon="@drawable/ic_wiki_open" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btn_copy_json"
+                                    style="@style/Widget.Material3.Button.TonalButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="@dimen/spacing_sm"
+                                    android:text="@string/wiki_copy_json"
+                                    app:icon="@drawable/ic_wiki_copy" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btn_refresh"
+                                    style="@style/Widget.Material3.Button.TonalButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="@dimen/spacing_sm"
+                                    android:text="@string/wiki_refresh"
+                                    app:icon="@drawable/ic_wiki_refresh" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btn_query_other"
+                                    style="@style/Widget.Material3.Button.TextButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="@dimen/spacing_sm"
+                                    android:text="@string/wiki_query_other" />
+
+                            </LinearLayout>
+
+                        </HorizontalScrollView>
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- 动态区块容器：歌曲资料 / 创作信息 / 贡献记录 -->
+                <LinearLayout
+                    android:id="@+id/sections_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+            </com.auramusic.wiki.classic.MaxWidthLinearLayout>
+
+        </androidx.core.widget.NestedScrollView>
+
+        <!-- ② 加载态 -->
+        <LinearLayout
+            android:id="@+id/state_loading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/loading_indicator"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:indeterminate="true" />
+
+            <TextView
+                android:id="@+id/tv_loading_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_lg"
+                android:accessibilityLiveRegion="polite"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+        </LinearLayout>
+
+        <!-- ③ 空态（初始引导 + 查询历史） -->
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/state_empty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingStart="@dimen/screen_horizontal_margin"
+                android:paddingEnd="@dimen/screen_horizontal_margin"
+                android:paddingBottom="@dimen/spacing_xl">
+
+                <ImageView
+                    android:layout_width="@dimen/state_icon_size"
+                    android:layout_height="@dimen/state_icon_size"
+                    android:contentDescription="@string/wiki_empty_title"
+                    android:src="@drawable/ic_wiki_empty"
+                    app:tint="?attr/colorOnSurfaceVariant" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_lg"
+                    android:text="@string/wiki_empty_title"
+                    android:textAppearance="?attr/textAppearanceHeadlineSmall" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_sm"
+                    android:gravity="center"
+                    android:text="@string/wiki_empty_desc"
+                    android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
+
+                <TextView
+                    android:id="@+id/tv_history_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_xl"
+                    android:text="@string/wiki_history"
+                    android:textAppearance="@style/TextAppearance.ClassicWiki.SectionTitle"
+                    android:visibility="gone" />
+
+                <!-- 查询历史：横向可滑动的 MD3 Chip，替代原先 5 条通栏按钮 -->
+                <HorizontalScrollView
+                    android:id="@+id/history_scroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_sm"
+                    android:scrollbars="none"
+                    android:visibility="gone">
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/history_container"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:chipSpacingHorizontal="@dimen/spacing_sm"
+                        app:singleLine="true" />
+
+                </HorizontalScrollView>
+
+            </LinearLayout>
+
+        </androidx.core.widget.NestedScrollView>
+
+        <!-- ④ 错误态 -->
+        <LinearLayout
+            android:id="@+id/state_error"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/screen_horizontal_margin"
+            android:paddingEnd="@dimen/screen_horizontal_margin"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="@dimen/state_icon_size"
+                android:layout_height="@dimen/state_icon_size"
+                android:contentDescription="@string/contrib_error_title"
+                android:src="@drawable/ic_wiki_error"
+                app:tint="?attr/colorError" />
+
+            <TextView
+                android:id="@+id/tv_error_message"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_lg"
+                android:accessibilityLiveRegion="assertive"
+                android:gravity="center"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textColor="?attr/colorOnSurface" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_retry"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_lg"
+                android:text="@string/wiki_error_retry" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+</LinearLayout>

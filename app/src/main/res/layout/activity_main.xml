@@ -1,0 +1,648 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  主界面：MD3 顶栏 + 双顶层目的地（歌曲百科 / 我的贡献）+ 悬浮式底栏覆盖层。
+  目的地切换采用视图显隐而非 Fragment，保持单 Activity 宿主结构，避免状态丢失。
+
+  底栏结构（本轮优化）：
+    root(FrameLayout)
+      ├─ 内容列：Toolbar + content_host（两个目的地页面）
+      └─ bottom_overlay（悬浮覆盖层，gravity=bottom）
+           ├─ BackdropBlurView   亚克力 / 液态玻璃背景模糊
+           └─ 纵向排列：contrib_pager（页面选择器，紧贴底栏上边缘）+ nav_shell（底栏）
+  底栏不再占据内容高度，而是覆盖在内容之上，因此可以看到被模糊的滚动内容；
+  内容区由 MainActivity 按覆盖层实测高度补下内边距，保证列表底部不被遮挡。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            style="@style/Widget.ClassicWiki.Toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorSurface"
+            app:title="@string/app_name" />
+
+        <!-- 顶栏上传进度：封面 / 歌曲上传时实时显示，空闲时收起 -->
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/pb_toolbar_upload"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:trackCornerRadius="2dp"
+            app:trackThickness="3dp" />
+
+        <!-- 内容宿主：底栏覆盖在其之上，因此由代码补下内边距（需求：底栏不遮挡内容） -->
+        <FrameLayout
+            android:id="@+id/content_host"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <!--
+              目的地：声云资源下载（新增）
+              封面走 scimg 的 -original 规则，音源走 lucida.to；下载完成后可传入专辑上传。
+            -->
+            <com.auramusic.wiki.classic.SoundCloudDownloadView
+                android:id="@+id/page_download"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+
+            <!-- 目的地：专辑上传（新增，对应原 APK「补充缺失专辑」） -->
+            <com.auramusic.wiki.classic.AlbumUploadView
+                android:id="@+id/page_album_upload"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+
+            <!-- 目的地一：歌曲百科查询 -->
+            <com.auramusic.wiki.classic.WikiQueryView
+                android:id="@+id/wiki_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <!--
+              目的地二：我的贡献（对齐原 APK 页面结构）
+                接口通道卡片 → 标题「我的曲库贡献」→ 账号卡片 → 贡献搜索
+                  → 分类 Tab → 审核状态筛选 → 列表
+            -->
+            <LinearLayout
+                android:id="@+id/page_contributions"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <!--
+                  原生下拉刷新（需求 2）：SwipeRefreshLayout 直接包裹滚动容器，
+                  使用设计语言原生的圆形旋转指示器；容器高度由 layout_weight 撑满，
+                  因此无论上方卡片被隐藏到何种程度，下拉手势都始终可用（需求 6）。
+                -->
+                <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+                    android:id="@+id/contrib_swipe"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1">
+
+                    <!--
+                      可滚动容器：接口通道 / 标题 / 账号卡片 / 搜索 / 分类 Tab /
+                      状态筛选与贡献列表同处一个滚动容器，向下滚动时顶部信息整体移出屏幕，
+                      列表得以占满可视区域；列表内容会从悬浮底栏下方穿过并被模糊。
+                    -->
+                    <androidx.core.widget.NestedScrollView
+                        android:id="@+id/contrib_scroll"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:clipToPadding="false"
+                        android:fillViewport="true">
+
+                        <com.auramusic.wiki.classic.MaxWidthLinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_horizontal"
+                            android:orientation="vertical">
+
+                            <!-- 接口通道（对应原 APK Lu1/M0 d=0）：自动 / App 通道 / 网页通道 -->
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/contrib_transport_card"
+                                style="@style/Widget.ClassicWiki.Card.Elevated"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/screen_horizontal_margin"
+                                android:layout_marginTop="@dimen/spacing_sm"
+                                android:layout_marginEnd="@dimen/screen_horizontal_margin">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical"
+                                    android:padding="@dimen/spacing_lg">
+
+                                    <TextView
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/contrib_transport_title"
+                                        android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                                    <TextView
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="@dimen/spacing_xs"
+                                        android:text="@string/contrib_transport_desc"
+                                        android:textAppearance="?attr/textAppearanceBodySmall"
+                                        android:textColor="?attr/colorOnSurfaceVariant" />
+
+                                    <RadioGroup
+                                        android:id="@+id/group_transport"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="@dimen/spacing_sm"
+                                        android:orientation="vertical" />
+
+                                </LinearLayout>
+
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <!-- 标题：我的曲库贡献（对应原 APK Lu1/G0 d=1，独立于账号卡片） -->
+                            <TextView
+                                android:id="@+id/tv_account_title"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/screen_horizontal_margin"
+                                android:layout_marginTop="@dimen/spacing_lg"
+                                android:layout_marginEnd="@dimen/screen_horizontal_margin"
+                                android:text="@string/contrib_account_title"
+                                android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/contrib_account_card"
+                                style="@style/Widget.ClassicWiki.Card.Elevated"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/screen_horizontal_margin"
+                                android:layout_marginTop="@dimen/spacing_sm"
+                                android:layout_marginEnd="@dimen/screen_horizontal_margin">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center_vertical"
+                                    android:orientation="horizontal"
+                                    android:padding="@dimen/spacing_lg">
+
+                                    <ImageView
+                                        android:id="@+id/iv_avatar"
+                                        android:layout_width="@dimen/avatar_size"
+                                        android:layout_height="@dimen/avatar_size"
+                                        android:background="?attr/colorSurfaceContainerHighest"
+                                        android:contentDescription="@string/login_current_account"
+                                        android:scaleType="centerCrop"
+                                        android:src="@drawable/ic_account_muted" />
+
+                                    <LinearLayout
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="@dimen/spacing_lg"
+                                        android:layout_weight="1"
+                                        android:orientation="vertical">
+
+                                        <TextView
+                                            android:id="@+id/tv_account_name"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:ellipsize="end"
+                                            android:maxLines="1"
+                                            android:text="@string/login_not_logged_in"
+                                            android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+                                        <TextView
+                                            android:id="@+id/tv_account_uid"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginTop="@dimen/spacing_xs"
+                                            android:text="@string/contrib_uid_none"
+                                            android:textAppearance="?attr/textAppearanceBodySmall"
+                                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                                        <TextView
+                                            android:id="@+id/tv_account_stats"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginTop="@dimen/spacing_xs"
+                                            android:textAppearance="?attr/textAppearanceLabelSmall"
+                                            android:textColor="?attr/colorOnSurfaceVariant"
+                                            android:visibility="gone" />
+
+                                    </LinearLayout>
+
+                                    <com.google.android.material.button.MaterialButton
+                                        android:id="@+id/btn_account_action"
+                                        style="?attr/materialButtonOutlinedStyle"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="@dimen/spacing_md"
+                                        android:text="@string/login_cookie_submit" />
+
+                                </LinearLayout>
+
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <!--
+                              贡献搜索（需求 5）：账号卡片下方，支持关键词模糊匹配与提交日期范围筛选。
+                              检索为全量扫描式（服务端接口无关键词参数），命中集合独立分页。
+                            -->
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/contrib_search_card"
+                                style="@style/Widget.ClassicWiki.Card.Filled"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/screen_horizontal_margin"
+                                android:layout_marginTop="@dimen/list_item_spacing"
+                                android:layout_marginEnd="@dimen/screen_horizontal_margin">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical"
+                                    android:padding="@dimen/spacing_md">
+
+                                    <!-- 普通布局：竖向堆叠，内边距由 16dp 收紧到 12dp -->
+                                    <LinearLayout
+                                        android:id="@+id/search_normal"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="vertical">
+
+                                    <TextView
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/contrib_search_title"
+                                        android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                                    <TextView
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="@dimen/spacing_xs"
+                                        android:text="@string/contrib_search_desc"
+                                        android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
+
+                                    <com.google.android.material.textfield.TextInputLayout
+                                        android:id="@+id/til_search_keyword"
+                                        style="@style/Widget.ClassicWiki.TextInput"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="@dimen/spacing_md"
+                                        android:hint="@string/contrib_search_keyword_hint"
+                                        app:endIconMode="clear_text"
+                                        app:startIconDrawable="@drawable/ic_wiki_search">
+
+                                        <com.google.android.material.textfield.TextInputEditText
+                                            android:id="@+id/et_search_keyword"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:imeOptions="actionSearch"
+                                            android:inputType="text"
+                                            android:maxLines="1" />
+
+                                    </com.google.android.material.textfield.TextInputLayout>
+
+                                    <!-- 提交日期范围：点击唤起 MD3 原生日期区间选择器 -->
+                                    <LinearLayout
+                                        android:id="@+id/row_search_date"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="@dimen/spacing_sm"
+                                        android:background="?attr/selectableItemBackground"
+                                        android:clickable="true"
+                                        android:focusable="true"
+                                        android:gravity="center_vertical"
+                                        android:minHeight="@dimen/item_height_one_line"
+                                        android:orientation="horizontal">
+
+                                        <TextView
+                                            android:layout_width="0dp"
+                                            android:layout_height="wrap_content"
+                                            android:layout_weight="1"
+                                            android:text="@string/contrib_search_date_label"
+                                            android:textAppearance="?attr/textAppearanceBodyLarge"
+                                            android:textColor="?attr/colorOnSurface" />
+
+                                        <TextView
+                                            android:id="@+id/tv_search_date"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginStart="@dimen/spacing_md"
+                                            android:ellipsize="end"
+                                            android:maxLines="1"
+                                            android:text="@string/contrib_search_date_none"
+                                            android:textAppearance="?attr/textAppearanceBodyMedium"
+                                            android:textColor="?attr/colorPrimary" />
+
+                                        <ImageView
+                                            android:layout_width="@dimen/icon_md"
+                                            android:layout_height="@dimen/icon_md"
+                                            android:layout_marginStart="@dimen/spacing_xs"
+                                            android:contentDescription="@string/contrib_search_date_title"
+                                            android:src="@drawable/ic_chevron_right"
+                                            app:tint="?attr/colorOnSurfaceVariant" />
+
+                                    </LinearLayout>
+
+                                    <LinearLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="@dimen/spacing_md"
+                                        android:orientation="horizontal">
+
+                                        <com.google.android.material.button.MaterialButton
+                                            android:id="@+id/btn_search_reset"
+                                            style="?attr/materialButtonOutlinedStyle"
+                                            android:layout_width="0dp"
+                                            android:layout_height="wrap_content"
+                                            android:layout_weight="1"
+                                            android:text="@string/contrib_search_reset" />
+
+                                        <com.google.android.material.button.MaterialButton
+                                            android:id="@+id/btn_search_apply"
+                                            android:layout_width="0dp"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginStart="@dimen/spacing_sm"
+                                            android:layout_weight="1"
+                                            android:text="@string/contrib_search_apply" />
+
+                                    </LinearLayout>
+
+                                    </LinearLayout>
+
+                                    <!--
+                                      精简长条布局：单行内展示「输入框 + 日期筛选 + 执行搜索」。
+                                      重置能力通过输入框右侧常驻的自定义 end icon 提供，保证 4 项功能无缺失；
+                                      三个控件均为 48dp 热区，窄屏（320dp）下输入框仍保留约 150dp 可用宽度。
+                                    -->
+                                    <LinearLayout
+                                        android:id="@+id/search_compact"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:gravity="center_vertical"
+                                        android:orientation="horizontal"
+                                        android:visibility="gone">
+
+                                        <com.google.android.material.textfield.TextInputLayout
+                                            android:id="@+id/til_search_keyword_compact"
+                                            style="@style/Widget.ClassicWiki.TextInput"
+                                            android:layout_width="0dp"
+                                            android:layout_height="wrap_content"
+                                            android:layout_weight="1"
+                                            android:hint="@string/contrib_search_compact_hint"
+                                            app:endIconDrawable="@drawable/ic_wiki_refresh"
+                                            app:endIconMode="custom"
+                                            app:startIconDrawable="@drawable/ic_wiki_search">
+
+                                            <com.google.android.material.textfield.TextInputEditText
+                                                android:id="@+id/et_search_keyword_compact"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:imeOptions="actionSearch"
+                                                android:inputType="text"
+                                                android:maxLines="1" />
+
+                                        </com.google.android.material.textfield.TextInputLayout>
+
+                                        <ImageButton
+                                            android:id="@+id/btn_search_date_compact"
+                                            android:layout_width="@dimen/touch_target_min"
+                                            android:layout_height="@dimen/touch_target_min"
+                                            android:layout_marginStart="@dimen/spacing_xs"
+                                            android:background="?attr/selectableItemBackgroundBorderless"
+                                            android:contentDescription="@string/contrib_search_date_title"
+                                            android:padding="12dp"
+                                            android:scaleType="centerInside"
+                                            android:src="@drawable/ic_calendar"
+                                            app:tint="?attr/colorOnSurfaceVariant" />
+
+                                        <ImageButton
+                                            android:id="@+id/btn_search_apply_compact"
+                                            android:layout_width="@dimen/touch_target_min"
+                                            android:layout_height="@dimen/touch_target_min"
+                                            android:background="?attr/selectableItemBackgroundBorderless"
+                                            android:contentDescription="@string/contrib_search_apply"
+                                            android:padding="12dp"
+                                            android:scaleType="centerInside"
+                                            android:src="@drawable/ic_wiki_search_fill"
+                                            app:tint="?attr/colorPrimary" />
+
+                                    </LinearLayout>
+
+                                    <TextView
+                                        android:id="@+id/tv_search_result"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="@dimen/spacing_sm"
+                                        android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting"
+                                        android:visibility="gone" />
+
+                                </LinearLayout>
+
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <com.google.android.material.tabs.TabLayout
+                                android:id="@+id/tab_layout"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="?attr/colorSurface"
+                                app:tabGravity="start"
+                                app:tabIndicatorAnimationMode="elastic"
+                                app:tabIndicatorFullWidth="false"
+                                app:tabMode="scrollable"
+                                app:tabRippleColor="@null" />
+
+                            <HorizontalScrollView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:paddingStart="@dimen/screen_horizontal_margin"
+                                android:paddingTop="@dimen/spacing_sm"
+                                android:paddingEnd="@dimen/screen_horizontal_margin"
+                                android:scrollbars="none">
+
+                                <com.google.android.material.chip.ChipGroup
+                                    android:id="@+id/chip_status"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:chipSpacingHorizontal="@dimen/spacing_sm"
+                                    app:selectionRequired="true"
+                                    app:singleLine="true"
+                                    app:singleSelection="true" />
+
+                            </HorizontalScrollView>
+
+                            <FrameLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:minHeight="@dimen/contrib_list_min_height">
+
+                                <androidx.recyclerview.widget.RecyclerView
+                                    android:id="@+id/recycler_view"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:clipToPadding="false"
+                                    android:nestedScrollingEnabled="false"
+                                    android:paddingTop="@dimen/spacing_sm"
+                                    android:paddingBottom="@dimen/spacing_lg" />
+
+                                <include
+                                    android:id="@+id/contrib_state"
+                                    layout="@layout/view_list_state"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center" />
+
+                            </FrameLayout>
+
+                        </com.auramusic.wiki.classic.MaxWidthLinearLayout>
+
+                    </androidx.core.widget.NestedScrollView>
+
+                </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+            </LinearLayout>
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+    <!--
+      底部覆盖层：页面选择器 + 底栏共用同一块玻璃背景，因此三者视觉完全统一，
+      且页面选择器恒紧贴底栏上边缘（悬浮样式下同样成立）。
+    -->
+    <FrameLayout
+        android:id="@+id/bottom_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <com.auramusic.wiki.classic.BackdropBlurView
+            android:id="@+id/overlay_blur"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom" />
+
+        <LinearLayout
+            android:id="@+id/overlay_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:orientation="vertical">
+
+            <!--
+              页面选择器（需求 4 / 本轮优化）：首页 / 上一页 / 页码（点击展开页码面板）/ 下一页 / 末页。
+              页码面板内只列出页码本身，首末页由两侧的功能图标承担。
+              切换进入「我的贡献」时整体向上滑入，离开时向下滑出。
+              左右留白与底栏外边距一致，保证按钮与底栏边缘对齐。
+            -->
+            <LinearLayout
+                android:id="@+id/contrib_pager"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/nav_float_margin_horizontal"
+                android:layout_marginEnd="@dimen/nav_float_margin_horizontal"
+                android:clickable="true"
+                android:focusable="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingTop="@dimen/spacing_xs"
+                android:paddingBottom="@dimen/spacing_xs"
+                android:visibility="gone">
+
+                <!--
+                  首 / 末页：图标按钮改为 ImageButton（48dp 热区 + 24dp 图标 + 12dp 内边距）。
+                  此前用 iconGravity 依赖 MaterialButton 内部排版，图标会偏向一侧并与相邻按钮视觉重叠。
+                -->
+                <ImageButton
+                    android:id="@+id/btn_page_first"
+                    android:layout_width="@dimen/touch_target_min"
+                    android:layout_height="@dimen/touch_target_min"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/contrib_page_first"
+                    android:padding="12dp"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_first_page"
+                    app:tint="?attr/colorOnSurfaceVariant" />
+
+                <!-- 上一页 / 下一页：Expressive 图标按钮（FilledTonal 圆形，48dp 热区） -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_page_prev"
+                    style="@style/Widget.ClassicWiki.PagerIcon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/spacing_xs"
+                    android:contentDescription="@string/contrib_page_prev"
+                    app:icon="@drawable/ic_chevron_left"
+                    app:iconGravity="textStart" />
+
+                <TextView
+                    android:id="@+id/tv_page_info"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/spacing_sm"
+                    android:layout_marginEnd="@dimen/spacing_sm"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_status_pill"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="@drawable/bg_status_pill_ripple"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:singleLine="true"
+                    android:minHeight="@dimen/touch_target_min"
+                    android:paddingStart="@dimen/spacing_md"
+                    android:paddingEnd="@dimen/spacing_md"
+                    android:autoSizeMaxTextSize="13sp"
+                    android:autoSizeMinTextSize="8sp"
+                    android:autoSizeStepGranularity="1sp"
+                    android:autoSizeTextType="uniform"
+                    android:textAppearance="?attr/textAppearanceLabelLarge"
+                    android:textColor="?attr/colorOnPrimaryContainer" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_page_next"
+                    style="@style/Widget.ClassicWiki.PagerIcon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/spacing_xs"
+                    android:contentDescription="@string/contrib_page_next"
+                    app:icon="@drawable/ic_chevron_right"
+                    app:iconGravity="textStart" />
+
+                <ImageButton
+                    android:id="@+id/btn_page_last"
+                    android:layout_width="@dimen/touch_target_min"
+                    android:layout_height="@dimen/touch_target_min"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/contrib_page_last"
+                    android:padding="12dp"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_last_page"
+                    app:tint="?attr/colorOnSurfaceVariant" />
+
+            </LinearLayout>
+
+            <!--
+              底栏外壳：由 MainActivity#applyNavStyle 按用户选择在
+              「悬浮胶囊」与「贴底通栏」两种样式间切换（边距 / 圆角 / 海拔 / 玻璃配色）。
+            -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/nav_shell"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipToOutline="true"
+                android:layout_marginStart="@dimen/nav_float_margin_horizontal"
+                android:layout_marginEnd="@dimen/nav_float_margin_horizontal"
+                android:layout_marginBottom="@dimen/nav_float_margin_bottom"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+                app:cardCornerRadius="@dimen/shape_nav"
+                app:cardElevation="@dimen/nav_float_elevation"
+                app:strokeWidth="0dp">
+
+                <com.auramusic.wiki.classic.ExpressiveNavBar
+                    android:id="@+id/bottom_nav"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/nav_item_height" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+</FrameLayout>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingTop="@dimen/spacing_sm"
+    android:paddingBottom="@dimen/spacing_sm">
+
+    <TextView
+        android:id="@+id/tv_field_label"
+        android:layout_width="@dimen/field_label_width"
+        android:layout_height="wrap_content"
+        android:textAppearance="@style/TextAppearance.ClassicWiki.FieldLabel" />
+
+    <TextView
+        android:id="@+id/tv_field_value"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fontFamily="@font/app_display"
+        android:textAppearance="@style/TextAppearance.ClassicWiki.FieldValue"
+        android:textIsSelectable="true" />
+
+</LinearLayout>

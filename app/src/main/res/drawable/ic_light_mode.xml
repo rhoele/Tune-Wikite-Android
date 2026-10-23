@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols Rounded · light_mode（简化实心版，用于主题模式三列选择） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12 7a5 5 0 1 0 0 10a5 5 0 1 0 0-10zM11 1h2v4h-2zM11 19h2v4h-2zM1 11h4v2H1zM19 11h4v2h-4zM4.22 5.64l1.42-1.42 2.83 2.83-1.42 1.42zM15.54 16.95l1.42-1.42 2.83 2.83-1.42 1.42zM17.66 4.22l1.42 1.42-2.83 2.83-1.42-1.42zM6.34 15.54l1.42 1.42-2.83 2.83-1.42-1.42z" />
+</vector>

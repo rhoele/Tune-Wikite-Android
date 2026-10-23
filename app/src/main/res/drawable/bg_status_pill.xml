@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 状态胶囊：主色容器底 + 全圆角，随调色板自动换色 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/shape_full" />
+    <solid android:color="?attr/colorPrimaryContainer" />
+</shape>

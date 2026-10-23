@@ -57,6 +57,9 @@ jobs:
             echo "keyPassword=$KEY_PASSWORD"
           } > keystore.properties
 
+      - name: Verify build, unit tests and lint
+        run: ./gradlew testDebugUnitTest lintRelease --stacktrace
+
       - name: Build release APK
         env:
           FCM_SERVER_BASE_URL: ${{ vars.FCM_SERVER_BASE_URL }}

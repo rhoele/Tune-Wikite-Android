@@ -3,15 +3,23 @@ package com.auramusic.wiki.classic;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.NotificationManagerCompat;
+
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
+
+import java.io.File;
 
 /**
  * 设置一级目录（需求 4 / Stage 2）。
  *
  * <p>结构由「6 张大卡片」改为「3 个分组 + MD3 列表行」：
- * 通用（外观 / 显示）、账号与提醒（账号 / 通知 / 后台审核提醒）、其他（关于）。
+ * 通用（外观 / 显示）、账号与提醒（账号 / 通知 / 后台审核提醒）、其他（检查更新 / 关于）。
  * 入口与跳转目标完全不变；摘要由 {@link Md3ListItemView#setSupporting} 实时刷新。
  */
 public class SettingsActivity extends BaseActivity {
@@ -23,6 +31,16 @@ public class SettingsActivity extends BaseActivity {
     private Md3ListItemView rowAudit;
     private Md3ListItemView rowRejectReasons;
     private Md3ListItemView rowDownload;
+    private Md3ListItemView rowUpdate;
+
+    /** 检查更新 / 下载的进行中状态与可取消句柄 */
+    private boolean checkingUpdate;
+    private Http.CancelToken checkToken;
+    private Http.CancelToken downloadToken;
+    private AlertDialog downloadDialog;
+    private LinearProgressIndicator downloadBar;
+    private TextView downloadLabel;
+
     /** 本次创建时采用的「设置项样式」，用于从外观页返回后判断是否需要重建 */
     private boolean appliedAsCards;
 
@@ -39,6 +57,7 @@ public class SettingsActivity extends BaseActivity {
         rowAudit = findViewById(R.id.entry_audit);
         rowRejectReasons = findViewById(R.id.entry_reject_reasons);
         rowDownload = findViewById(R.id.entry_download);
+        rowUpdate = findViewById(R.id.entry_update);
 
         openOnClick(R.id.entry_appearance, AppearanceSettingsActivity.class);
         openOnClick(R.id.entry_display, DisplaySettingsActivity.class);
@@ -48,6 +67,15 @@ public class SettingsActivity extends BaseActivity {
         openOnClick(R.id.entry_reject_reasons, RejectReasonsActivity.class);
         openOnClick(R.id.entry_download, DownloadSettingsActivity.class);
         openOnClick(R.id.entry_about, AboutSettingsActivity.class);
+
+        if (rowUpdate != null) {
+            rowUpdate.setSupporting(getString(R.string.settings_summary_update,
+                    UpdateChecker.currentVersion(this)));
+            rowUpdate.setOnClickListener(v -> {
+                HapticsManager.tap(v);
+                checkForUpdate();
+            });
+        }
 
         // 按「设置项样式」偏好重排：独立卡片模式下每行单独成卡，分组卡透明化
         appliedAsCards = AppearanceManager.rowsAsCards(this);
@@ -167,6 +195,246 @@ public class SettingsActivity extends BaseActivity {
                 });
             }, "settings-download").start();
         }
+
+        if (rowUpdate != null && !checkingUpdate) {
+            rowUpdate.setSupporting(getString(R.string.settings_summary_update,
+                    UpdateChecker.currentVersion(this)));
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (checkToken != null) {
+            checkToken.cancel();
+        }
+        if (downloadToken != null) {
+            downloadToken.cancel();
+        }
+        dismissDownloadDialog();
+    }
+
+    /** 手动检查最新正式版；结果通过提示或对话框呈现，不做后台轮询。 */
+    private void checkForUpdate() {
+        if (checkingUpdate || rowUpdate == null) {
+            return;
+        }
+        checkingUpdate = true;
+        rowUpdate.setEnabled(false);
+        rowUpdate.setSupporting(getString(R.string.update_checking));
+        checkToken = new Http.CancelToken();
+        Http.CancelToken token = checkToken;
+        new Thread(() -> {
+            UpdateChecker.Release release = null;
+            WikiException failure = null;
+            try {
+                release = UpdateChecker.latest(token);
+            } catch (WikiException e) {
+                failure = e;
+            }
+            UpdateChecker.Release result = release;
+            WikiException error = failure;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                checkingUpdate = false;
+                rowUpdate.setEnabled(true);
+                rowUpdate.setSupporting(getString(R.string.settings_summary_update,
+                        UpdateChecker.currentVersion(this)));
+                if (error != null) {
+                    Feedback.showLong(this, describeUpdateError(error));
+                    return;
+                }
+                String current = UpdateChecker.currentVersion(this);
+                if (result == null
+                        || UpdateChecker.compareVersions(result.version, current) <= 0) {
+                    Feedback.show(this, getString(R.string.update_latest, current));
+                    return;
+                }
+                showReleaseDialog(result);
+            });
+        }, "update-check").start();
+    }
+
+    private String describeUpdateError(WikiException e) {
+        switch (e.getKind()) {
+            case NO_NETWORK:
+                return getString(R.string.update_error_network);
+            case TIMEOUT:
+                return getString(R.string.update_error_timeout);
+            case BAD_JSON:
+                return getString(R.string.update_error_bad_json);
+            case HTTP:
+                if (e.getHttpCode() == 404) {
+                    return getString(R.string.update_error_no_release);
+                }
+                if (e.getHttpCode() == 403) {
+                    return getString(R.string.update_error_rate);
+                }
+                return getString(R.string.update_error_http, e.getHttpCode());
+            default:
+                return getString(R.string.update_check_failed,
+                        e.getMessage() == null ? "" : e.getMessage());
+        }
+    }
+
+    private void showReleaseDialog(UpdateChecker.Release release) {
+        if (release.apkUrl == null || release.apkUrl.isEmpty()) {
+            String body = release.notes.isEmpty()
+                    ? getString(R.string.update_no_apk)
+                    : release.notes + "\n\n" + getString(R.string.update_no_apk);
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle(getString(R.string.update_found_title, release.version))
+                    .setMessage(body)
+                    .setPositiveButton(R.string.update_later, null)
+                    .show();
+            return;
+        }
+
+        StringBuilder message = new StringBuilder();
+        String notes = release.notes;
+        if (notes.isEmpty()) {
+            message.append(getString(R.string.update_notes_empty));
+        } else {
+            // 更新说明可能很长，超长部分截断，完整内容可到发布页查看
+            if (notes.length() > 1200) {
+                notes = notes.substring(0, 1200) + "…";
+            }
+            message.append(notes);
+        }
+        message.append("\n\n").append(getString(R.string.update_current_hint,
+                UpdateChecker.currentVersion(this)));
+        if (release.apkSize > 0) {
+            message.append("\n").append(getString(R.string.update_size,
+                    DownloadStore.formatSize(release.apkSize)));
+        }
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(getString(R.string.update_found_title, release.version))
+                .setMessage(message)
+                .setPositiveButton(R.string.update_download_install,
+                        (dialog, which) -> startDownload(release))
+                .setNegativeButton(R.string.update_later, null)
+                .show();
+    }
+
+    private void startDownload(UpdateChecker.Release release) {
+        if (!UpdateChecker.canInstall(this)) {
+            showInstallPermissionDialog();
+            return;
+        }
+        if (downloadDialog != null) {
+            return;
+        }
+        downloadToken = new Http.CancelToken();
+        Http.CancelToken token = downloadToken;
+        showDownloadDialog();
+        new Thread(() -> {
+            File apk = null;
+            WikiException failure = null;
+            try {
+                apk = UpdateChecker.download(this, release, percent -> runOnUiThread(() -> {
+                    if (downloadBar != null) {
+                        downloadBar.setProgressCompat(percent, true);
+                    }
+                    if (downloadLabel != null) {
+                        downloadLabel.setText(
+                                getString(R.string.update_download_percent, percent));
+                    }
+                }), token);
+            } catch (WikiException e) {
+                failure = e;
+            }
+            File result = apk;
+            WikiException error = failure;
+            runOnUiThread(() -> {
+                dismissDownloadDialog();
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (error != null) {
+                    if (error.getKind() == WikiException.Kind.CANCELLED) {
+                        Feedback.show(this, R.string.update_cancelled);
+                    } else {
+                        Feedback.showLong(this, getString(R.string.update_download_failed));
+                    }
+                    return;
+                }
+                installDownloaded(result);
+            });
+        }, "update-download").start();
+    }
+
+    private void showDownloadDialog() {
+        float density = getResources().getDisplayMetrics().density;
+        int pad = Math.round(24 * density);
+        int gap = Math.round(16 * density);
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(pad, Math.round(8 * density), pad, 0);
+
+        downloadLabel = new TextView(this);
+        downloadLabel.setText(getString(R.string.update_download_percent, 0));
+        downloadBar = new LinearProgressIndicator(this);
+        downloadBar.setIndeterminate(false);
+        downloadBar.setMax(100);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.topMargin = gap;
+        box.addView(downloadLabel);
+        box.addView(downloadBar, params);
+
+        downloadDialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.update_download_title)
+                .setView(box)
+                // 下载期间禁止点外部/返回关闭，避免状态与按钮不一致；可点「取消」终止
+                .setCancelable(false)
+                .setNegativeButton(R.string.update_cancel, (dialog, which) -> cancelDownload())
+                .create();
+        downloadDialog.show();
+    }
+
+    private void cancelDownload() {
+        if (downloadToken != null) {
+            downloadToken.cancel();
+        }
+    }
+
+    private void dismissDownloadDialog() {
+        if (downloadDialog != null) {
+            downloadDialog.dismiss();
+            downloadDialog = null;
+        }
+        downloadBar = null;
+        downloadLabel = null;
+    }
+
+    private void installDownloaded(File apk) {
+        if (apk == null) {
+            return;
+        }
+        if (!UpdateChecker.canInstall(this)) {
+            showInstallPermissionDialog();
+            return;
+        }
+        try {
+            UpdateChecker.install(this, apk);
+        } catch (Exception e) {
+            Feedback.showLong(this, getString(R.string.update_install_failed));
+        }
+    }
+
+    private void showInstallPermissionDialog() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.update_install_title)
+                .setMessage(R.string.update_install_desc)
+                .setPositiveButton(R.string.update_install_settings,
+                        (dialog, which) -> UpdateChecker.openInstallPermission(this))
+                .setNegativeButton(R.string.update_later, null)
+                .show();
     }
 
     private String stateLabel(boolean shown) {

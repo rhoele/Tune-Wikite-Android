@@ -48,6 +48,16 @@ final class Http {
         public boolean isCancelled() {
             return cancelled;
         }
+
+        /** 绑定在途连接，供 cancel() 立即断开（Http 之外的自定义下载也复用它）。 */
+        void attach(HttpURLConnection connection) {
+            this.connection = connection;
+        }
+
+        /** 连接结束后解绑，避免 cancel() 误断后续请求。 */
+        void detach() {
+            this.connection = null;
+        }
     }
 
     /** 带响应头的返回体（扫码登录需要读取 Set-Cookie 完成会话交接）。 */

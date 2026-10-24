@@ -220,6 +220,17 @@
                     android:orientation="vertical">
 
                     <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/entry_update"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="@dimen/settings_row_inset"
+                        android:paddingEnd="@dimen/settings_row_inset"
+                        app:md3IconTileColor="secondary"
+                        app:md3LeadingIcon="@drawable/ic_cloud_download"
+                        app:md3Title="@string/settings_group_update"
+                        app:md3TrailingMode="chevron" />
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
                         android:id="@+id/entry_about"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"

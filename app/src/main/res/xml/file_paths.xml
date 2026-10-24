@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 只暴露应用内更新下载的 APK 目录，其余私有目录不对外开放 -->
+<paths>
+    <cache-path
+        name="update"
+        path="update/" />
+</paths>

@@ -89,7 +89,7 @@ keytool -genkeypair -v -keystore kukugongjian-release.jks -alias kukugongjian `
 - 包名：`com.auramusic.wiki.classic`
 - 版本号在 `app/build.gradle` 的 `defaultConfig` 中维护；每次发布需递增 `versionCode`，否则无法覆盖安装。
 - 发布产物命名约定：`TuneWikite-v<版本号>-release.apk`，发布时附上 SHA-256 校验值。
-- 发布前检查：`versionName` 与 tag 一致、`versionCode` 已递增；`RELEASE_NOTES.md` 中的 SHA-256 必须与实际上传的 APK 一致（走 Actions 时由工作流自动改写，手动上传时需自行替换）；应用内「检查更新」以 Release tag 为版本源，tag 与 `versionName` 不一致会导致用户被反复提示更新。
+- 发布前检查：`versionName` 与 tag 一致、`versionCode` 已递增；`RELEASE_NOTES.md` 中仓库内的 SHA-256 是占位值（64 个 0，不要手填），走 Actions 发布时由工作流在构建后替换成该次 APK 的实际校验和，只有手动上传 Release 时才需要自行替换；应用内「检查更新」以 Release tag 为版本源，tag 与 `versionName` 不一致会导致用户被反复提示更新。
 
 ## 已知限制
 

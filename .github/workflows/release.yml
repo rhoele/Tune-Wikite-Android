@@ -1,7 +1,7 @@
 # 正式版 APK 构建与 GitHub Release
 #
-# 说明：本工作流尚未在真实 CI 中运行验证，首次使用前请先在仓库的 Actions 页面手动
-# 触发一次（workflow_dispatch），确认签名、校验和与附件都正确后再打 tag。
+# 说明：已随 v1.0.0 / v1.1.0 在 GitHub Actions 实跑验证，签名、校验和与 Release 附件均正常。
+# 保留 workflow_dispatch，便于不打 tag 时单独试构建或重跑。
 #
 # 需要配置的仓库 Secrets：
 #   KEYSTORE_BASE64      keystore 文件的 Base64（base64 -w0 release.jks）

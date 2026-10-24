@@ -1,0 +1,3 @@
+# 保证 shell 脚本在 Linux CI 中以 LF + 可执行方式检出（Windows 上默认 autocrlf=true 会破坏 gradlew）
+gradlew text eol=lf
+*.sh text eol=lf

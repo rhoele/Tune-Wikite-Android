@@ -49,8 +49,16 @@ public class SettingsActivity extends BaseActivity {
         openOnClick(R.id.entry_audit, AuditSettingsActivity.class);
         openOnClick(R.id.entry_reject_reasons, RejectReasonsActivity.class);
         openOnClick(R.id.entry_download, DownloadSettingsActivity.class);
-        openOnClick(R.id.entry_update, UpdateActivity.class);
         openOnClick(R.id.entry_about, AboutSettingsActivity.class);
+
+        if (rowUpdate != null) {
+            rowUpdate.setSupporting(getString(R.string.settings_summary_update,
+                    UpdateChecker.currentVersion(this)));
+            rowUpdate.setOnClickListener(v -> {
+                HapticsManager.tap(v);
+                checkUpdate(v);
+            });
+        }
 
         // 按「设置项样式」偏好重排：独立卡片模式下每行单独成卡，分组卡透明化
         appliedAsCards = AppearanceManager.rowsAsCards(this);
@@ -175,6 +183,20 @@ public class SettingsActivity extends BaseActivity {
             rowUpdate.setSupporting(getString(R.string.settings_summary_update,
                     UpdateChecker.currentVersion(this)));
         }
+    }
+
+    /** 手动检查：期间把行切到「正在检查更新…」，结束后恢复版本摘要。 */
+    private void checkUpdate(View anchor) {
+        if (rowUpdate == null) {
+            return;
+        }
+        rowUpdate.setEnabled(false);
+        rowUpdate.setSupporting(getString(R.string.update_checking));
+        UpdateSheet.checkManually(this, () -> {
+            rowUpdate.setEnabled(true);
+            rowUpdate.setSupporting(getString(R.string.settings_summary_update,
+                    UpdateChecker.currentVersion(this)));
+        });
     }
 
     private String stateLabel(boolean shown) {

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  发现新版本时的底部抽屉：与「审核消息」「选择页码」同一套骨架
+  （拖拽把手 + 大标题 + 内容区 + 底部动作），不再是 AlertDialog。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingBottom="@dimen/spacing_lg">
+
+    <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/spacing_xs" />
+
+    <TextView
+        android:id="@+id/tv_update_sheet_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="@dimen/settings_row_inset"
+        android:paddingTop="@dimen/spacing_sm"
+        android:paddingEnd="@dimen/settings_row_inset"
+        android:paddingBottom="@dimen/spacing_xs"
+        android:textAppearance="?attr/textAppearanceTitleLarge" />
+
+    <TextView
+        android:id="@+id/tv_update_sheet_meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="@dimen/settings_row_inset"
+        android:paddingEnd="@dimen/settings_row_inset"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:textColor="?attr/colorOnSurfaceVariant" />
+
+    <TextView
+        android:id="@+id/tv_update_sheet_notes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/spacing_md"
+        android:ellipsize="end"
+        android:lineSpacingExtra="2dp"
+        android:maxLines="8"
+        android:paddingStart="@dimen/settings_row_inset"
+        android:paddingEnd="@dimen/settings_row_inset"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:textColor="?attr/colorOnSurfaceVariant" />
+
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/pb_update_sheet"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/settings_row_inset"
+        android:layout_marginTop="@dimen/spacing_md"
+        android:layout_marginEnd="@dimen/settings_row_inset"
+        android:indeterminate="false"
+        android:max="100"
+        android:visibility="gone"
+        app:trackCornerRadius="2dp"
+        app:trackThickness="3dp" />
+
+    <TextView
+        android:id="@+id/tv_update_sheet_percent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/spacing_xs"
+        android:paddingStart="@dimen/settings_row_inset"
+        android:paddingEnd="@dimen/settings_row_inset"
+        android:textAppearance="?attr/textAppearanceBodySmall"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/spacing_lg"
+        android:gravity="end"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/settings_row_inset"
+        android:paddingEnd="@dimen/spacing_sm">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_update_later"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/update_later" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_update_action"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_xs"
+            android:text="@string/update_action_download" />
+
+    </LinearLayout>
+
+</LinearLayout>

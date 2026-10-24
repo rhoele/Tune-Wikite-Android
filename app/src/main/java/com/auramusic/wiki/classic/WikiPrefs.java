@@ -48,6 +48,8 @@ public final class WikiPrefs {
     public static final String SEARCH_LAYOUT_COMPACT = "compact";
     /** 发行公司历史输入（JSON 数组，最近使用在前） */
     public static final String KEY_COMPANY_HISTORY = "album_company_history_v1";
+    /** 上次启动静默检查更新的时间戳（毫秒），用于限制每天最多一次 */
+    public static final String KEY_UPDATE_CHECK_AT = "app_update_check_at";
 
     // ------------------------------------------------------------------
     // 交互与动效（第二阶段：控件体验 / 导航栏 / 转场）
@@ -106,6 +108,15 @@ public final class WikiPrefs {
     public static String cookie(Context context) {
         String v = get(context).getString(KEY_COOKIE, "");
         return v == null ? "" : v.trim();
+    }
+
+    /** 上次静默检查更新的时间；0 表示从未检查。 */
+    public static long updateCheckedAt(Context context) {
+        return get(context).getLong(KEY_UPDATE_CHECK_AT, 0L);
+    }
+
+    public static void setUpdateCheckedAt(Context context, long at) {
+        get(context).edit().putLong(KEY_UPDATE_CHECK_AT, at).apply();
     }
 
     public static boolean hasCookie(Context context) {

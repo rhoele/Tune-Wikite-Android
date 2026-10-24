@@ -431,6 +431,8 @@ public class MainActivity extends BaseActivity {
         AuditPollingService.startIfEnabled(this);
         // 低频检查下载目录的自动清理条件（阈值 / 周期）
         DownloadStore.maybeAutoClean(this);
+        // 启动静默检查更新：每天最多一次，只有发现新版本才弹出提示
+        UpdateSheet.checkSilently(this);
 
         int startDestination = getIntent() == null
                 ? DEST_WIKI

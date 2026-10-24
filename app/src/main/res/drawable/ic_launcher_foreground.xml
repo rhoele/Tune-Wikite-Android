@@ -1,19 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  自适应图标前景：唱片 + 下载箭头（线条风）。
+  108dp 画布，图形全部落在 66dp 安全圆内；深色描边 #1E3646，线宽 4.5dp，保证 48dp 下仍可辨识。
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#2E384D"
-        android:pathData="M12,24h84a12,12 0,0 1,12 12v36a12,12 0,0 1,-12 12H12a12,12 0,0 1,-12 -12V36a12,12 0,0 1,12 -12z"/>
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M30,52h8v-16h6v16h8v6h-22z"/>
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M66,36h6v22h-6v-22z"/>
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M76,36h6v22h-6v-22z"/>
+
+    <!-- 整体平移，使图形外接框中在 108dp 画布中心，避免启动器遮罩下偏左上 -->
+    <group android:translateX="6.5" android:translateY="4.5">
+
+        <!-- 唱片外圈（右下留缺口给箭头） -->
+        <path
+            android:pathData="M40.95,62.84 A19.5,19.5 0 1 1 64.32,50.67"
+            android:strokeColor="#1E3646"
+            android:strokeWidth="4.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+
+        <!-- 中心孔 -->
+        <path
+            android:pathData="M46,39.2 A4.8,4.8 0 1 1 46,48.8 A4.8,4.8 0 1 1 46,39.2 Z"
+            android:strokeColor="#1E3646"
+            android:strokeWidth="4.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+
+        <!-- 下载箭头 -->
+        <path
+            android:pathData="M55,48 L65,48 L65,58.5 L70.5,58.5 L60,75 L49.5,58.5 L55,58.5 Z"
+            android:strokeColor="#1E3646"
+            android:strokeWidth="4.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
 </vector>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">曲库共建</string>
+    <string name="app_name">Tune Wikite</string>
 
     <!-- 顶层导航 -->
     <string name="nav_wiki">歌曲百科</string>
@@ -242,9 +242,9 @@
 
     <!-- 设置：关于 -->
     <string name="settings_section_about">关于</string>
-    <string name="settings_about_desc">曲库共建把日常共建流程收在一处：\n\n• 歌曲百科：免登录按歌曲 ID 或分享链接查询曲库资料、公开贡献与创作信息；\n• 我的贡献：登录后按分类 / 状态浏览个人共建记录，支持搜索、分页与审核结果提醒；\n• 声云下载：解析 SoundCloud 单曲或歌单，下载封面与音频，可直接交接给专辑上传；\n• 专辑上传：多曲目批量选择、拖拽排序、封面裁剪与批量上传，曲风与语种可沿用；\n• 未通过原因：自动归档审核私信里的具体原因，按项目类型分组，可复制完整原因或定位到贡献卡片；\n• 下载与存储：管理封面 / 音频的保存位置、占用、自动清理与批量迁移。\n\n所有凭据仅保存在本机，不会上传到任何第三方服务器；下载文件默认存放在应用专用目录，卸载应用会一并清理。</string>
+    <string name="settings_about_desc">Tune Wikite 把日常共建流程收在一处：\n\n• 歌曲百科：免登录按歌曲 ID 或分享链接查询曲库资料、公开贡献与创作信息；\n• 我的贡献：登录后按分类 / 状态浏览个人共建记录，支持搜索、分页与审核结果提醒；\n• 声云下载：解析 SoundCloud 单曲或歌单，下载封面与音频，可直接交接给专辑上传；\n• 专辑上传：多曲目批量选择、拖拽排序、封面裁剪与批量上传，曲风与语种可沿用；\n• 未通过原因：自动归档审核私信里的具体原因，按项目类型分组，可复制完整原因或定位到贡献卡片；\n• 下载与存储：管理封面 / 音频的保存位置、占用、自动清理与批量迁移。\n\n所有凭据仅保存在本机，不会上传到任何第三方服务器；下载文件默认存放在应用专用目录，卸载应用会一并清理。</string>
     <string name="settings_about_version">版本 %1$s</string>
-    <string name="settings_about_app_name">曲库共建</string>
+    <string name="settings_about_app_name">Tune Wikite</string>
     <string name="settings_about_version_title">版本</string>
 
     <!-- 未通过原因归档 -->
@@ -382,7 +382,7 @@
     <string name="appearance_font_default">标准</string>
     <string name="appearance_font_large">大</string>
     <string name="appearance_font_xlarge">超大</string>
-    <string name="appearance_font_preview">预览：曲库共建 · 歌曲百科 · 我的贡献</string>
+    <string name="appearance_font_preview">预览：Tune Wikite · 歌曲百科 · 我的贡献</string>
     <string name="appearance_applied">外观设置已更新</string>
     <string name="appearance_dynamic_unavailable">当前系统版本不支持动态取色，已回落为品牌配色</string>
 

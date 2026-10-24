@@ -46,7 +46,7 @@ final class FcmPayload {
         Map<String, String> source = data == null ? Collections.<String, String>emptyMap() : data;
         String title = trimToNull(source.get("title"));
         if (title == null) {
-            title = "曲库共建";
+            title = "Tune Wikite";
         }
         String body = trimToNull(source.get("body"));
         if (body == null) {

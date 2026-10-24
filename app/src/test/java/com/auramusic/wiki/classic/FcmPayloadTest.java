@@ -19,7 +19,7 @@ public class FcmPayloadTest {
     @Test
     public void emptyPayloadFallsBackToAppNameAndContributions() {
         FcmPayload payload = FcmPayload.from(null);
-        assertEquals("曲库共建", payload.title);
+        assertEquals("Tune Wikite", payload.title);
         assertEquals("", payload.body);
         assertEquals(FcmPayload.ROUTE_CONTRIBUTIONS, payload.route);
         assertNull(payload.query);

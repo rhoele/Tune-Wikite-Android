@@ -1,4 +1,4 @@
-# 曲库共建（Classic Wiki）
+# Tune Wikite（Classic Wiki）
 
 一个面向网易云音乐「曲库共建」场景的 Android 客户端：查歌曲百科、看自己的贡献与审核结果、从 SoundCloud 取封面与音源、批量补全专辑信息并提交审核。
 
@@ -86,7 +86,7 @@ keytool -genkeypair -v -keystore kukugongjian-release.jks -alias kukugongjian `
 
 - 包名：`com.auramusic.wiki.classic`
 - 版本号在 `app/build.gradle` 的 `defaultConfig` 中维护；每次发布需递增 `versionCode`，否则无法覆盖安装。
-- 发布产物命名约定：`KuKuGongJian-v<版本号>-release.apk`，发布时附上 SHA-256 校验值。
+- 发布产物命名约定：`TuneWikite-v<版本号>-release.apk`，发布时附上 SHA-256 校验值。
 
 ## 已知限制
 

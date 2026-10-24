@@ -102,7 +102,7 @@ public final class NotificationHelper {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(
                 context, AuditPollingService.CHANNEL_AUDIT)
                 .setSmallIcon(R.drawable.ic_fact_check)
-                .setContentTitle("曲库共建 · 审核结果通知测试")
+                .setContentTitle(context.getString(R.string.app_name) + " · 审核结果通知测试")
                 .setContentText("系统通知通道测试成功！后续有审核变动时将自动发送提醒。")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)

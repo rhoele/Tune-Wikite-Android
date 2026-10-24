@@ -161,6 +161,13 @@
             android:label="@string/settings_group_about"
             android:parentActivityName=".SettingsActivity" />
 
+        <!-- 设置二级页：检查更新（读取 GitHub Releases 并下载安装） -->
+        <activity
+            android:name=".UpdateActivity"
+            android:exported="false"
+            android:label="@string/settings_group_update"
+            android:parentActivityName=".SettingsActivity" />
+
         <!-- 未通过原因归档：按原因分组浏览 / 复制审核私信 -->
         <activity
             android:name=".RejectReasonsActivity"

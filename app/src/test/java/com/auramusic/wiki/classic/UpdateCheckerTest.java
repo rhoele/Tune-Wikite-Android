@@ -1,6 +1,7 @@
 package com.auramusic.wiki.classic;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -71,5 +72,24 @@ public class UpdateCheckerTest {
 
         assertEquals("1.2.0", release.version);
         assertNull(release.apkUrl);
+    }
+
+    @Test
+    public void notesAreRenderedAsPlainText() {
+        String raw = "<!--\n  发布前必读：不要外传\n-->\n"
+                + "# Tune Wikite v1.1.0\n\n"
+                + "## 本次更新\n\n"
+                + "- **修复** 若干问题\n\n"
+                + "| 文件 | 说明 |\n|---|---|\n| a.apk | 安装包 |";
+
+        String plain = UpdateChecker.plainNotes(raw);
+
+        assertFalse(plain.contains("<!--"));
+        assertFalse(plain.contains("##"));
+        assertFalse(plain.contains("**"));
+        assertFalse(plain.contains("|---"));
+        assertTrue(plain.startsWith("Tune Wikite v1.1.0"));
+        assertTrue(plain.contains("修复 若干问题"));
+        assertTrue(plain.contains("a.apk · 安装包"));
     }
 }

@@ -312,4 +312,28 @@ final class UpdateChecker {
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         context.startActivity(intent);
     }
+
+    /**
+     * 把 Release 正文的 Markdown 压成纯文本：去掉 HTML 注释、标题井号、加粗标记与表格分隔行，
+     * 否则页面里会直接出现 {@code <!-- -->} 与 {@code ##}。
+     */
+    static String plainNotes(String raw) {
+        String text = raw.replaceAll("(?s)<!--.*?-->", "");
+        text = text.replace("\r\n", "\n").replace("\r", "\n");
+        StringBuilder out = new StringBuilder();
+        for (String line : text.split("\n")) {
+            String trimmed = line.trim();
+            if (trimmed.matches("\\|?[\\s:|-]+\\|?")) {
+                continue;
+            }
+            trimmed = trimmed.replaceAll("^#{1,6}\\s*", "");
+            trimmed = trimmed.replace("**", "");
+            if (trimmed.startsWith("|") && trimmed.endsWith("|") && trimmed.length() > 2) {
+                trimmed = trimmed.substring(1, trimmed.length() - 1)
+                        .replaceAll("\\s*\\|\\s*", " · ").trim();
+            }
+            out.append(trimmed).append('\n');
+        }
+        return out.toString().replaceAll("\n{3,}", "\n\n").trim();
+    }
 }

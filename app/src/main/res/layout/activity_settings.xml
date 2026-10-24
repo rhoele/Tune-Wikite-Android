@@ -226,7 +226,7 @@
                         android:paddingStart="@dimen/settings_row_inset"
                         android:paddingEnd="@dimen/settings_row_inset"
                         app:md3IconTileColor="secondary"
-                        app:md3LeadingIcon="@drawable/ic_cloud_download"
+                        app:md3LeadingIcon="@drawable/ic_system_update"
                         app:md3Title="@string/settings_group_update"
                         app:md3TrailingMode="chevron" />
 

@@ -7,6 +7,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
+import androidx.core.widget.NestedScrollView;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
@@ -29,6 +30,10 @@ final class UpdateSheet {
 
     /** 静默检查的最小间隔：每天最多一次 */
     private static final long SILENT_CHECK_INTERVAL_MS = 24L * 60 * 60 * 1000;
+    /** 说明超过这个字数就按「长内容」处理：抽屉先停在半屏，可拖到全屏阅读 */
+    private static final int LONG_NOTES_CHARS = 240;
+    /** 长内容抽屉初始高度占屏幕的比例 */
+    private static final float HALF_EXPANDED_RATIO = 0.62f;
 
     private final Activity activity;
     private final UpdateChecker.Release release;
@@ -39,6 +44,9 @@ final class UpdateSheet {
     private final LinearProgressIndicator progress;
     private final MaterialButton action;
     private final MaterialButton later;
+    private final MaterialButton ignore;
+    private final NestedScrollView notesScroll;
+    private final boolean longNotes;
 
     private Http.CancelToken token;
     private boolean downloading;
@@ -53,10 +61,12 @@ final class UpdateSheet {
                 .setText(activity.getString(R.string.update_found_title, release.version));
         meta = root.findViewById(R.id.tv_update_sheet_meta);
         notes = root.findViewById(R.id.tv_update_sheet_notes);
+        notesScroll = root.findViewById(R.id.sv_update_notes);
         percent = root.findViewById(R.id.tv_update_sheet_percent);
         progress = root.findViewById(R.id.pb_update_sheet);
         action = root.findViewById(R.id.btn_update_action);
         later = root.findViewById(R.id.btn_update_later);
+        ignore = root.findViewById(R.id.btn_update_ignore);
 
         String current = UpdateChecker.currentVersion(activity);
         meta.setText(release.apkSize > 0
@@ -73,8 +83,25 @@ final class UpdateSheet {
         }
         notes.setText(body);
 
+        longNotes = body.length() > LONG_NOTES_CHARS;
+
         dialog = new BottomSheetDialog(activity);
         dialog.setContentView(root);
+        if (longNotes) {
+            // 长说明：内容撑满抽屉可用高度，说明区占满剩余空间并可滚动；
+            // 抽屉默认停在半屏，拖杆上拖即可看全文。
+            android.view.ViewGroup.LayoutParams rootParams = root.getLayoutParams();
+            if (rootParams != null) {
+                rootParams.height = android.view.ViewGroup.LayoutParams.MATCH_PARENT;
+                root.setLayoutParams(rootParams);
+            }
+
+            LinearLayout.LayoutParams scrollParams =
+                    (LinearLayout.LayoutParams) notesScroll.getLayoutParams();
+            scrollParams.height = 0;
+            scrollParams.weight = 1;
+            notesScroll.setLayoutParams(scrollParams);
+        }
         dialog.setOnDismissListener(d -> {
             downloading = false;
             if (token != null) {
@@ -84,6 +111,11 @@ final class UpdateSheet {
         });
 
         later.setOnClickListener(v -> dialog.dismiss());
+        ignore.setOnClickListener(v -> {
+            WikiPrefs.setIgnoredUpdateVersion(activity, release.version);
+            dialog.dismiss();
+            Feedback.show(activity, activity.getString(R.string.update_ignored, release.version));
+        });
         action.setOnClickListener(v -> {
             if (downloading) {
                 cancelDownload();
@@ -153,6 +185,7 @@ final class UpdateSheet {
                 }
                 String current = UpdateChecker.currentVersion(activity);
                 if (result != null
+                        && !result.version.equals(WikiPrefs.ignoredUpdateVersion(activity))
                         && UpdateChecker.compareVersions(result.version, current) > 0) {
                     show(activity, result);
                 }
@@ -168,9 +201,28 @@ final class UpdateSheet {
     }
 
     private void present() {
-        BottomSheetBehavior<?> behavior = dialog.getBehavior();
-        behavior.setSkipCollapsed(true);
-        behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+        dialog.setOnShowListener(d -> {
+            BottomSheetBehavior<?> behavior = dialog.getBehavior();
+            behavior.setSkipCollapsed(true);
+            if (longNotes) {
+                // 抽屉容器必须占满屏幕，半屏状态才有确定的高度可分配：
+                // 只给根布局设 MATCH_PARENT 时父容器仍是 wrap_content，
+                // 说明区会按内容高度撑开、超出半屏后被裁掉。
+                View sheet = dialog.findViewById(
+                        com.google.android.material.R.id.design_bottom_sheet);
+                if (sheet != null) {
+                    android.view.ViewGroup.LayoutParams params = sheet.getLayoutParams();
+                    params.height = android.view.ViewGroup.LayoutParams.MATCH_PARENT;
+                    sheet.setLayoutParams(params);
+                }
+                // 先停在半屏：顶部能看到版本号与开头，拖杆上拖展开到全屏阅读全文
+                behavior.setFitToContents(false);
+                behavior.setHalfExpandedRatio(HALF_EXPANDED_RATIO);
+                behavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+            } else {
+                behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+            }
+        });
         dialog.show();
     }
 
@@ -195,6 +247,7 @@ final class UpdateSheet {
         percent.setVisibility(View.VISIBLE);
         percent.setText(activity.getString(R.string.update_download_percent, 0));
         later.setVisibility(View.GONE);
+        ignore.setVisibility(View.GONE);
         action.setText(R.string.update_action_cancel);
 
         new Thread(() -> {
@@ -255,6 +308,7 @@ final class UpdateSheet {
         progress.setVisibility(View.GONE);
         percent.setVisibility(View.GONE);
         later.setVisibility(View.VISIBLE);
+        ignore.setVisibility(View.VISIBLE);
         action.setText(actionText);
     }
 

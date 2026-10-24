@@ -326,8 +326,12 @@ final class UpdateChecker {
             if (trimmed.matches("\\|?[\\s:|-]+\\|?")) {
                 continue;
             }
+            // 代码围栏整行丢弃，行内反引号与加粗标记去掉，正文里只留纯文字
+            if (trimmed.startsWith("```")) {
+                continue;
+            }
             trimmed = trimmed.replaceAll("^#{1,6}\\s*", "");
-            trimmed = trimmed.replace("**", "");
+            trimmed = trimmed.replace("**", "").replace("`", "");
             if (trimmed.startsWith("|") && trimmed.endsWith("|") && trimmed.length() > 2) {
                 trimmed = trimmed.substring(1, trimmed.length() - 1)
                         .replaceAll("\\s*\\|\\s*", " · ").trim();

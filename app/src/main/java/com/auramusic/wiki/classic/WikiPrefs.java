@@ -50,6 +50,8 @@ public final class WikiPrefs {
     public static final String KEY_COMPANY_HISTORY = "album_company_history_v1";
     /** 上次启动静默检查更新的时间戳（毫秒），用于限制每天最多一次 */
     public static final String KEY_UPDATE_CHECK_AT = "app_update_check_at";
+    /** 用户主动「忽略此版本」的版本号；只有更新的版本才会再次提醒 */
+    private static final String KEY_UPDATE_IGNORED = "app_update_ignored_version";
 
     // ------------------------------------------------------------------
     // 交互与动效（第二阶段：控件体验 / 导航栏 / 转场）
@@ -117,6 +119,16 @@ public final class WikiPrefs {
 
     public static void setUpdateCheckedAt(Context context, long at) {
         get(context).edit().putLong(KEY_UPDATE_CHECK_AT, at).apply();
+    }
+
+    /** 被忽略的版本号；空串表示没有忽略任何版本。 */
+    public static String ignoredUpdateVersion(Context context) {
+        String v = get(context).getString(KEY_UPDATE_IGNORED, "");
+        return v == null ? "" : v;
+    }
+
+    public static void setIgnoredUpdateVersion(Context context, String version) {
+        get(context).edit().putString(KEY_UPDATE_IGNORED, version == null ? "" : version).apply();
     }
 
     public static boolean hasCookie(Context context) {

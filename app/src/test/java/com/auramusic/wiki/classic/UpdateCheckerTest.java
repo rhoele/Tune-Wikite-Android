@@ -80,7 +80,8 @@ public class UpdateCheckerTest {
                 + "# Tune Wikite v1.1.0\n\n"
                 + "## 本次更新\n\n"
                 + "- **修复** 若干问题\n\n"
-                + "| 文件 | 说明 |\n|---|---|\n| a.apk | 安装包 |";
+                + "| 文件 | 说明 |\n|---|---|\n| a.apk | 安装包 |\n\n"
+                + "```powershell\nGet-FileHash .\\a.apk\n```";
 
         String plain = UpdateChecker.plainNotes(raw);
 
@@ -88,6 +89,8 @@ public class UpdateCheckerTest {
         assertFalse(plain.contains("##"));
         assertFalse(plain.contains("**"));
         assertFalse(plain.contains("|---"));
+        assertFalse(plain.contains("```"));
+        assertFalse(plain.contains("`"));
         assertTrue(plain.startsWith("Tune Wikite v1.1.0"));
         assertTrue(plain.contains("修复 若干问题"));
         assertTrue(plain.contains("a.apk · 安装包"));

@@ -149,7 +149,15 @@ public class Contribution {
             return "";
         }
         String lower = u.toLowerCase(java.util.Locale.ROOT);
-        if (lower.startsWith("http://") || lower.startsWith("https://")) {
+        if (lower.startsWith("http://")) {
+            // 网易 CDN 全站支持 HTTPS；targetSdk 28+ 默认禁止明文流量，
+            // 继续用 http 会被系统直接拦截，表现为封面始终停在占位图。
+            if (lower.contains(".music.126.net") || lower.contains(".126.net")) {
+                return "https://" + u.substring("http://".length());
+            }
+            return u;
+        }
+        if (lower.startsWith("https://")) {
             return u;
         }
         if (u.startsWith("//")) {

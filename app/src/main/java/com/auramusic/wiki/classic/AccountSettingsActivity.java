@@ -23,6 +23,8 @@ public class AccountSettingsActivity extends BaseActivity {
 
     private Md3ListItemView rowAccount;
     private View rowLogout;
+    /** 进入本页时的登录状态：用于识别「从登录页返回后刚登录成功」并给出 Snackbar */
+    private boolean wasLoggedIn;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -44,12 +46,19 @@ public class AccountSettingsActivity extends BaseActivity {
 
         // 按「设置项样式」偏好重排：独立卡片模式下每行单独成卡，分组卡透明化
         SettingsRows.applyRowStyle(findViewById(R.id.group_account));
+        wasLoggedIn = SessionManager.isLoggedIn(this);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         refreshState();
+        // 从登录页返回：本页不接收 result，只能比较前后登录态来给出成功提示
+        boolean loggedIn = SessionManager.isLoggedIn(this);
+        if (loggedIn && !wasLoggedIn) {
+            Feedback.show(this, R.string.login_success);
+        }
+        wasLoggedIn = loggedIn;
     }
 
     private void refreshState() {

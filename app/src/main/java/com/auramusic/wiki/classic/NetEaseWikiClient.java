@@ -273,11 +273,10 @@ public final class NetEaseWikiClient {
                     fetchPage(context, type, auditStatus, offset, limit, token)));
         }
         for (int i = 0; i < pending.size(); i++) {
+            final int type = ALL_EXTRA_TYPES[i];
+            Page extra = null;
             try {
-                Page extra = pending.get(i).get();
-                merged.addAll(extra.items);
-                total += extra.total;
-                pageCount = Math.max(pageCount, pageCountOf(extra.total, limit));
+                extra = pending.get(i).get();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 cancelAll(pending);
@@ -288,9 +287,27 @@ public final class NetEaseWikiClient {
                         && ((WikiException) cause).getKind() == WikiException.Kind.CANCELLED) {
                     throw (WikiException) cause;
                 }
-                Log.w(TAG, "「全部」补齐类型 " + ALL_EXTRA_TYPES[i] + " 失败，仅呈现已取到的类型："
+                // 三个来源并发时服务端偶发限流：失败来源串行补拉一次。
+                // 否则「全部」页会静默丢掉这一批歌词 / 翻译，表现为刚提交的卡片不出现。
+                Log.w(TAG, "「全部」补齐类型 " + type + " 首次失败，串行重试一次："
                         + (cause == null ? e.getMessage() : cause.getMessage()), cause);
+                try {
+                    extra = fetchPage(context, type, auditStatus, offset, limit, token);
+                } catch (WikiException retryError) {
+                    if (retryError.getKind() == WikiException.Kind.CANCELLED) {
+                        throw retryError;
+                    }
+                    Log.w(TAG, "「全部」补齐类型 " + type + " 重试仍失败，仅呈现已取到的类型："
+                            + retryError.getMessage(), retryError);
+                }
             }
+            if (extra == null) {
+                continue;
+            }
+            merged.addAll(extra.items);
+            total += extra.total;
+            pageCount = Math.max(pageCount, pageCountOf(extra.total, limit));
+            Log.d(TAG, "「全部」已合并类型 " + type + " 本页=" + extra.items.size());
         }
         List<Contribution> items = mergeAndDedupe(merged);
         Log.d(TAG, "fetchAllTypesPage 聚合 本页=" + items.size()

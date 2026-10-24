@@ -42,9 +42,23 @@ public class ContributionParseTest {
         Contribution c = Contribution.fromJson(new JSONObject(REAL_ITEM));
         assertNotNull(c);
         assertEquals("3365925110", c.targetId);
-        assertEquals("http://p2.music.126.net/UeTuwE7pvjBpypWLudqukA==/3132508627578625.jpg",
+        // 网易 CDN 的 http 地址统一升级为 https，否则会被系统明文流量策略拦截
+        assertEquals("https://p2.music.126.net/UeTuwE7pvjBpypWLudqukA==/3132508627578625.jpg",
                 c.coverUrl);
         assertTrue(CoverLoader.isAllowed(c.coverUrl));
+    }
+
+    /** 分类查询返回的封面常是 http，必须升级为 https，否则真机上封面永远加载不出来 */
+    @Test
+    public void httpCdnCoverIsUpgradedToHttps() throws Exception {
+        Contribution c = Contribution.fromJson(new JSONObject(
+                "{\"bizId\":1,\"nosKey\":\"http://p2.music.126.net/abc.jpg\"}"));
+        assertEquals("https://p2.music.126.net/abc.jpg", c.coverUrl);
+
+        Contribution nonCdn = Contribution.fromJson(new JSONObject(
+                "{\"bizId\":2,\"coverUrl\":\"http://example.com/a.jpg\"}"));
+        // 非 CDN 域名保持原样：不假设对方支持 https
+        assertEquals("http://example.com/a.jpg", nonCdn.coverUrl);
     }
 
     @Test
@@ -68,7 +82,7 @@ public class ContributionParseTest {
     public void nestedCoverIsResolved() throws Exception {
         Contribution c = Contribution.fromJson(new JSONObject(
                 "{\"bizId\":2,\"song\":{\"album\":{\"picUrl\":\"http://p1.music.126.net/a.jpg\"}}}"));
-        assertEquals("http://p1.music.126.net/a.jpg", c.coverUrl);
+        assertEquals("https://p1.music.126.net/a.jpg", c.coverUrl);
     }
 
     @Test

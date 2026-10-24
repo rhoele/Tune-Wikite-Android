@@ -12,7 +12,6 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 
@@ -438,8 +437,8 @@ public class LoginActivity extends BaseActivity {
 
     private void finishWithSuccess() {
         HapticsManager.confirm(findViewById(android.R.id.content));
-        // 这里紧接着就 finish()，Snackbar 会随窗口立即消失，只能继续用 Toast
-        Toast.makeText(this, R.string.login_success, Toast.LENGTH_SHORT).show();
+        // 本页紧接着 finish()，Snackbar 会随窗口一起消失；成功提示由调用方
+        // （主界面的登录结果回调 / 账号设置页 onResume）在返回后展示。
         setResult(RESULT_OK);
         finish();
     }

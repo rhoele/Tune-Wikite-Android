@@ -304,6 +304,13 @@ public class MainActivity extends BaseActivity {
     private Http.CancelToken inflight;
     private int generation;
     private int statsGeneration;
+    /** 最近一次贡献列表加载完成时间，用于回到前台时判断数据是否已陈旧 */
+    private long lastContribLoadAt;
+    /** 封面补齐批次号：新一页开始后，上一页迟到的补齐结果直接丢弃 */
+    private int coverResolveSeq;
+
+    /** 回到前台后，超过这个时长才自动刷新贡献列表（避免频繁切换应用时重复请求） */
+    private static final long CONTRIB_RESUME_REFRESH_MS = 30_000L;
 
     /** 统计数字的计数动画，以及上一次展示值（-1 表示尚未展示过） */
     private ValueAnimator statsCounter;
@@ -356,6 +363,8 @@ public class MainActivity extends BaseActivity {
                     // 登录后重新登记推送令牌（携带新的 userId）
                     FcmManager.ensureToken(this);
                     reload();
+                    // 登录页 finish 时不能再弹 Snackbar，成功提示统一回到主界面展示
+                    Feedback.show(this, R.string.login_success);
                 }
             });
 
@@ -2516,6 +2525,40 @@ public class MainActivity extends BaseActivity {
         // 预热晚一步就会让首帧只能先画占位图，形成「封面慢半拍 / 闪一下」。
         preloadCovers(filtered);
         adapter.submitList(new ArrayList<>(filtered));
+        resolveMissingCovers(filtered);
+    }
+
+    /**
+     * 补齐本页缺失的封面。
+     *
+     * <p>歌词 / 翻译条目通常没有封面字段，分类查询也可能与「全部」返回不同结构，
+     * 导致同一张卡片出现「全部有封面、分类页没有」。统一按 bizId 补成所属歌曲的专辑封面
+     * （专辑取专辑封面、艺人取头像），补齐后重新绑定当前列表。
+     */
+    private void resolveMissingCovers(final List<Contribution> items) {
+        // 用户关闭「显示贡献卡片封面」时不做任何补齐请求
+        if (!coversSettingSnapshot || items == null || items.isEmpty()) {
+            return;
+        }
+        final int seq = ++coverResolveSeq;
+        CoverResolver.get().resolve(items, filled -> {
+            if (seq != coverResolveSeq || isFinishing() || isDestroyed()) {
+                return;
+            }
+            if (filled <= 0) {
+                return;
+            }
+            boolean hasCover = false;
+            for (Contribution item : items) {
+                if (item != null && CoverLoader.isAllowed(item.coverUrl)) {
+                    hasCover = true;
+                    break;
+                }
+            }
+            adapter.setCoversUnavailable(!hasCover);
+            preloadCovers(items);
+            adapter.notifyDataSetChanged();
+        });
     }
 
     /** 从命中集中裁出指定页（页码从 1 开始），越界返回空列表 */
@@ -3178,6 +3221,7 @@ public class MainActivity extends BaseActivity {
             }
             inflight = null;
             currentPage = page;
+            lastContribLoadAt = System.currentTimeMillis();
             // 聚合页的总页数不能由求和后的 total 推算，优先采用数据层给出的值
             totalPages = result.pageCount > 0
                     ? result.pageCount
@@ -3583,6 +3627,12 @@ public class MainActivity extends BaseActivity {
             boolean coversOn = WikiPrefs.showContributionCovers(this);
             if (currentStateTag == STATE_IDLE || !current.equals(cookieSnapshot)
                     || coversOn != coversSettingSnapshot) {
+                reload();
+            } else if (currentPage == 1 && currentStateTag == STATE_CONTENT
+                    && System.currentTimeMillis() - lastContribLoadAt > CONTRIB_RESUME_REFRESH_MS) {
+                // 用户到网易云提交歌词 / 翻译后返回：列表必须重新拉取，
+                // 否则「全部」页会一直停在旧数据，只有切换分类才会刷新。
+                // 只在第 1 页且数据已陈旧时刷新，避免打断正在翻页的浏览。
                 reload();
             } else {
                 refreshAccountCard();

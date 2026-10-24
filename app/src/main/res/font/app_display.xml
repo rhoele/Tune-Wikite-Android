@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  英文展示字体：Spotify Mix（Regular 400 / Medium 500）。
-  仅用于标题、分组标签与设置行标题；中文会自动回落到系统字体，
+  英文展示字体：DM Sans（Regular 400 / Medium 500），SIL Open Font License 1.1。
+  仅用于标题、贡献卡片与设置行等展示位；中文会自动回落到系统字体，
   正文仍使用系统字体以保证可读性与字重匹配。
+  许可文本随包分发：assets/licenses/OFL-DMSans.txt。
 -->
 <font-family xmlns:android="http://schemas.android.com/apk/res/android">
     <font
-        android:font="@font/spotify_mix_regular"
+        android:font="@font/dm_sans_regular"
         android:fontStyle="normal"
         android:fontWeight="400" />
     <font
-        android:font="@font/spotify_mix_medium"
+        android:font="@font/dm_sans_medium"
         android:fontStyle="normal"
         android:fontWeight="500" />
 </font-family>

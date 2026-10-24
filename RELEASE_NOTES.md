@@ -1,9 +1,10 @@
 <!--
   发布前必读：
-  1. 把下方 {{APK_SHA256}} 替换为本次实际上传 APK 的 SHA-256（发布包里同时附带 SHA256SUMS.txt）。
-  2. 确认版本号与 app/build.gradle 中的 versionName 一致，并已递增 versionCode。
+  1. 手动发布时，须把下方的 SHA-256 换成实际上传 APK 的计算值（发布包里同时附带 SHA256SUMS.txt）；
+     通过 GitHub Actions 发布时，工作流会按 CI 构建出的 APK 自动覆盖该值。
+  2. 确认版本号与 app/build.gradle 中的 versionName 一致；后续版本需递增 versionCode。
   3. 若本次有其它修复，同步更新「本次更新」小节，不要沿用旧内容。
-  未替换校验值的说明不得直接发布。
+  校验值与实际安装包不一致时不得发布。
 -->
 
 # Tune Wikite v1.0.0（首个公开版本）

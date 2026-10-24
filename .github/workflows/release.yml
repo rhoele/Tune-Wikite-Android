@@ -74,6 +74,12 @@ jobs:
           cp "$APK" "$OUT"
           sha256sum "$OUT" | tee SHA256SUMS.txt
 
+      - name: Sync checksum into release notes
+        run: |
+          SHA=$(cut -d' ' -f1 SHA256SUMS.txt | tr 'a-f' 'A-F')
+          sed -i -E "s/SHA-256：\`[0-9A-Fa-f]{64}\`/SHA-256：\`${SHA}\`/" RELEASE_NOTES.md
+          grep -n "SHA-256" RELEASE_NOTES.md
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

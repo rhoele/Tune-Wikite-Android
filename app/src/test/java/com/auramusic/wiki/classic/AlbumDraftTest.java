@@ -34,6 +34,8 @@ public class AlbumDraftTest {
         assertEquals("Sub;Alias", vo.getString("subtitle"));
         assertEquals("专辑", vo.getString("albumType"));
         assertEquals("Company", vo.getString("company"));
+        // 专辑介绍必须随 albumVo 提交，否则审核通过后简介为空白（v1.1.2 修复）
+        assertEquals("notes", vo.getString("notes"));
         assertEquals(1700000000000L, vo.getLong("publishTime"));
         assertEquals(2, vo.getJSONArray("artistIds").length());
         assertEquals(1, vo.getJSONArray("songTags").length());

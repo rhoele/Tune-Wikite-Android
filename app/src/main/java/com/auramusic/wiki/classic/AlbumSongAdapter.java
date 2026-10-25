@@ -70,6 +70,17 @@ final class AlbumSongAdapter extends RecyclerView.Adapter<AlbumSongAdapter.Holde
         notifyItemRangeChanged(0, getItemCount(), PAYLOAD_META);
     }
 
+    /**
+     * 拖拽换位结束后整行重绑一次。
+     *
+     * <p>RecyclerView 对 {@code notifyItemMoved} 不做重绑，换位后若某行在拖拽期间被
+     * 回收 / 复用，上传进度与完成对勾可能停留在旧内容上；这里显式刷新，保证每行显示的
+     * 曲序、进度、对勾都与当前歌曲一致。
+     */
+    void refreshAfterDrag() {
+        notifyItemRangeChanged(0, getItemCount(), PAYLOAD_CONTENT);
+    }
+
     @NonNull
     @Override
     public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -83,6 +94,13 @@ final class AlbumSongAdapter extends RecyclerView.Adapter<AlbumSongAdapter.Holde
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public void onBindViewHolder(@NonNull Holder holder, int position) {
+        // 拖拽中的行可能带着放大 / 阴影被回收复用，绑定新内容前先复位，
+        // 保证拖拽结束后所有行的外观一致
+        holder.itemView.animate().cancel();
+        holder.itemView.setScaleX(1f);
+        holder.itemView.setScaleY(1f);
+        holder.itemView.setTranslationZ(0f);
+
         AlbumDraft.Song song = songs.get(position);
         holder.name.setText(song.name);
         bindMeta(holder, song);

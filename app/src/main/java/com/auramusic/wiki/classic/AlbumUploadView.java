@@ -465,6 +465,9 @@ public class AlbumUploadView extends FrameLayout {
                         // Expressive 拖拽：拿起时抬升 + 轻微放大，并有独立触感
                         HapticsManager.longPress(viewHolder.itemView);
                         lift(viewHolder.itemView, true);
+                    } else if (actionState == ItemTouchHelper.ACTION_STATE_IDLE) {
+                        // 拖拽因任何原因结束（含被动画/滚动打断）时兜底复位所有行
+                        resetAllLifts(songList);
                     }
                 }
 
@@ -473,8 +476,13 @@ public class AlbumUploadView extends FrameLayout {
                                       RecyclerView.ViewHolder viewHolder) {
                     super.clearView(recyclerView, viewHolder);
                     lift(viewHolder.itemView, false);
+                    // RecyclerView 换位时可能把抬升状态留在别的行上，统一复位
+                    resetAllLifts(recyclerView);
                     HapticsManager.tap(viewHolder.itemView);
                     renumber();
+                    // 换位后的行不会自动重绑：整行刷一次，保证曲序 / 上传进度 / 对勾
+                    // 与当前歌曲一致，不残留拖拽前的状态
+                    adapter.refreshAfterDrag();
                 }
 
                 @Override
@@ -497,14 +505,40 @@ public class AlbumUploadView extends FrameLayout {
         if (itemView == null) {
             return;
         }
+        if (!lifted) {
+            // 直接复位而不是播放回落动画：松手时视图可能已被 RecyclerView 换位 / 回收，
+            // 动画还没跑完就被取消，会让个别行残留「放大 + 阴影」
+            resetLift(itemView);
+            return;
+        }
         itemView.animate()
-                .scaleX(lifted ? 1.02f : 1f)
-                .scaleY(lifted ? 1.02f : 1f)
-                .translationZ(lifted ? dp(10) : 0f)
+                .scaleX(1.02f)
+                .scaleY(1.02f)
+                .translationZ(dp(10))
                 .setDuration(MotionManager.controlDuration(getContext()))
-                .setInterpolator(lifted ? MotionManager.emphasized(getContext())
-                        : MotionManager.standard(getContext()))
+                .setInterpolator(MotionManager.emphasized(getContext()))
                 .start();
+    }
+
+    /** 把单行恢复到静止外观（无放大、无抬升阴影）。 */
+    private void resetLift(View itemView) {
+        if (itemView == null) {
+            return;
+        }
+        itemView.animate().cancel();
+        itemView.setScaleX(1f);
+        itemView.setScaleY(1f);
+        itemView.setTranslationZ(0f);
+    }
+
+    /** 复位列表中所有可见行；拖拽结束或被打断时调用，避免抬升状态残留在任意一行上。 */
+    private void resetAllLifts(@Nullable RecyclerView list) {
+        if (list == null) {
+            return;
+        }
+        for (int i = 0; i < list.getChildCount(); i++) {
+            resetLift(list.getChildAt(i));
+        }
     }
 
     /** 页面主滚动容器（供底栏模糊跟随超限位移）。 */
@@ -1549,8 +1583,18 @@ public class AlbumUploadView extends FrameLayout {
             return;
         }
         final long artistId = targetArtist.id;
+        // 表单值统一在主线程取快照：后台线程读 EditText 不符合线程模型，
+        // 输入法尚无提交组合串时还可能取到空值（专辑介绍曾因此提交为空）
         final String albumNameValue = text(albumName);
+        final String subtitleValue = text(albumSubtitle);
+        final String transValue = text(albumTrans);
         final String companyValue = text(company);
+        final String languageValue = TextUtils.join(",", selectedLanguages);
+        final List<AlbumDraft.Tag> tagSnapshot = new ArrayList<>(selectedTags);
+        final String sourceValue = text(source);
+        final String notesValue = text(notes);
+        final long publishTimeValue = publishTime == null ? 0 : publishTime;
+        final List<AlbumDraft.Song> songSnapshot = new ArrayList<>(songs);
         // 提交期间用户仍可能改动表单，先把本次提交涉及的艺人快照下来，
         // 成功清空表单时据此恢复「可重新添加」待选项，避免目标艺人凭空消失
         final AlbumDraft.Artist submittedTarget = targetArtist;
@@ -1564,11 +1608,10 @@ public class AlbumUploadView extends FrameLayout {
         executor.execute(() -> {
             try {
                 JSONObject vo = AlbumDraft.toAlbumVo(albumNameValue,
-                        text(albumSubtitle), selectedAlbumType, text(albumTrans),
-                        albumArtists, companyValue, publishTime == null ? 0 : publishTime,
-                        TextUtils.join(",", selectedLanguages),
-                        new ArrayList<>(selectedTags), "", songs,
-                        text(source), text(notes), coverRawNos, coverSquareNos);
+                        subtitleValue, selectedAlbumType, transValue,
+                        submittedAlbumArtists, companyValue, publishTimeValue,
+                        languageValue, tagSnapshot, "", songSnapshot,
+                        sourceValue, notesValue, coverRawNos, coverSquareNos);
                 NetEaseWikiClient.submitAlbum(getContext(), artistId, vo, null);
                 main.post(() -> {
                     submitting = false;

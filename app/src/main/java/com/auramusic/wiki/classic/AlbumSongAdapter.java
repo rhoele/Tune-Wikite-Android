@@ -70,6 +70,17 @@ final class AlbumSongAdapter extends RecyclerView.Adapter<AlbumSongAdapter.Holde
         notifyItemRangeChanged(0, getItemCount(), PAYLOAD_META);
     }
 
+    /**
+     * 拖拽换位结束后整行重绑一次。
+     *
+     * <p>RecyclerView 对 {@code notifyItemMoved} 不做重绑，换位后若某行在拖拽期间被
+     * 回收 / 复用，上传进度与完成对勾可能停留在旧内容上；这里显式刷新，保证每行显示的
+     * 曲序、进度、对勾都与当前歌曲一致。
+     */
+    void refreshAfterDrag() {
+        notifyItemRangeChanged(0, getItemCount(), PAYLOAD_CONTENT);
+    }
+
     @NonNull
     @Override
     public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -83,11 +94,17 @@ final class AlbumSongAdapter extends RecyclerView.Adapter<AlbumSongAdapter.Holde
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public void onBindViewHolder(@NonNull Holder holder, int position) {
+        // 拖拽中的行可能带着放大 / 阴影被回收复用，绑定新内容前先复位，
+        // 保证拖拽结束后所有行的外观一致
+        holder.itemView.animate().cancel();
+        holder.itemView.setScaleX(1f);
+        holder.itemView.setScaleY(1f);
+        holder.itemView.setTranslationZ(0f);
+
         AlbumDraft.Song song = songs.get(position);
         holder.name.setText(song.name);
         bindMeta(holder, song);
-        holder.progress.setVisibility(song.uploading ? View.VISIBLE : View.GONE);
-        holder.progress.setProgressCompat(song.uploadPercent, true);
+        bindProgress(holder, song);
         holder.state.setVisibility(song.uploaded() ? View.VISIBLE : View.GONE);
 
         holder.body.setOnClickListener(v -> {
@@ -117,12 +134,23 @@ final class AlbumSongAdapter extends RecyclerView.Adapter<AlbumSongAdapter.Holde
             // 标题必须一起刷新：编辑弹窗改完名称后只刷进度的话，列表会一直显示旧名称
             holder.name.setText(song.name);
             bindMeta(holder, song);
-            holder.progress.setVisibility(song.uploading ? View.VISIBLE : View.GONE);
-            holder.progress.setProgressCompat(song.uploadPercent, true);
+            bindProgress(holder, song);
             holder.state.setVisibility(song.uploaded() ? View.VISIBLE : View.GONE);
             return;
         }
         super.onBindViewHolder(holder, position, payloads);
+    }
+
+    /** 排队 / 准备阶段显示不确定进度条，开始传输后才显示百分比。 */
+    private void bindProgress(Holder holder, AlbumDraft.Song song) {
+        int stage = song.uploadStage;
+        holder.progress.setVisibility(stage == AlbumDraft.STAGE_IDLE ? View.GONE : View.VISIBLE);
+        if (stage == AlbumDraft.STAGE_UPLOADING) {
+            holder.progress.setIndeterminate(false);
+            holder.progress.setProgressCompat(song.uploadPercent, true);
+        } else if (stage != AlbumDraft.STAGE_IDLE) {
+            holder.progress.setIndeterminate(true);
+        }
     }
 
     private void bindMeta(Holder holder, AlbumDraft.Song song) {
@@ -138,7 +166,14 @@ final class AlbumSongAdapter extends RecyclerView.Adapter<AlbumSongAdapter.Holde
                 meta.append(song.artists.get(i).name);
             }
         }
-        if (song.uploading) {
+        int stage = song.uploadStage;
+        if (stage == AlbumDraft.STAGE_QUEUED) {
+            meta.append(" · ").append(
+                    holder.itemView.getContext().getString(R.string.au_song_queued));
+        } else if (stage == AlbumDraft.STAGE_PREPARING) {
+            meta.append(" · ").append(
+                    holder.itemView.getContext().getString(R.string.au_song_preparing));
+        } else if (stage == AlbumDraft.STAGE_UPLOADING) {
             meta.append(" · ").append(holder.itemView.getContext()
                     .getString(R.string.au_song_uploading, song.uploadPercent));
         } else if (song.uploadError != null && !song.uploadError.isEmpty()) {

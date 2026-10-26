@@ -110,13 +110,28 @@
             </intent-filter>
         </activity>
 
-        <!-- 登录页：Web 端二维码扫码 + Cookie 粘贴双通道，登录态持久化由 SessionManager 承担 -->
+        <!-- 登录页：Web 端二维码扫码 + Cookie 粘贴 + 手机号三通道，登录态持久化由 SessionManager 承担 -->
         <activity
             android:name=".LoginActivity"
             android:exported="false"
             android:label="@string/login_title"
             android:parentActivityName=".MainActivity"
             android:windowSoftInputMode="adjustResize" />
+
+        <!-- 网易云官方网页登录：手机号在官方页面完成，应用只取回 MUSIC_U -->
+        <activity
+            android:name=".NeteaseWebLoginActivity"
+            android:exported="false"
+            android:label="@string/login_web_title"
+            android:parentActivityName=".LoginActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- 云小编中心：等级 / 积分流水 / 权益 / 贡献排行榜（Compose 试点页） -->
+        <activity
+            android:name=".CloudEditorActivity"
+            android:exported="false"
+            android:label="@string/cloud_editor_title"
+            android:parentActivityName=".MainActivity" />
 
         <!-- 设置一级目录：分类清晰的二级入口 -->
         <activity

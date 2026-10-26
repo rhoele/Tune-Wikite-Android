@@ -43,6 +43,9 @@ public final class NetEaseWikiClient {
     /** 列表端点：data.wikiDetailResultVoList[] + data.total */
     private static final String API_DETAIL = "/api/rep/ugc/detail";
 
+    /** 补充专辑提交端点 */
+    private static final String API_SUBMIT_ALBUM = "/api/rep/ugc/add/artist/album";
+
     /**
      * 并行请求池：用于「全部」页的多来源补齐。
      *
@@ -457,10 +460,19 @@ public final class NetEaseWikiClient {
                                       Http.CancelToken token) throws WikiException {
         String cookie = WikiPrefs.cookie(context);
         TransportMode mode = WikiPrefs.transportMode(context);
-        // AUTO 模式沿用上次成功的通道：eapi 对网页百科端点稳定返回空响应，
-        // 每次先试它等于给每个请求多付一次失败往返（实测 60–110ms）
+        // AUTO 模式沿用上次成功的通道，省掉每请求一次的探测往返
         TransportMode hint = mode == TransportMode.AUTO
                 ? WikiPrefs.transportHint(context) : null;
+
+        // 「全部」固定走网页通道：实测 App 通道对 type=0 返回成功但列表为空
+        // （total=0），而 type=5 / 6 等具体分类正常返回；网页通道省略 type 才是「全部」。
+        // 这里不能只改 type 取值，否则会退化成「补充专辑」。
+        if (payload != null && payload.has("type")
+                && payload.optInt("type", -1) == TYPE_ALL) {
+            Log.d(TAG, "request path=" + apiPath + " 通道=WEAPI（全部：EAPI type=0 返回空列表）");
+            return NetEaseWeApi.post(apiPath, webPayload(payload), cookie, token);
+        }
+
         Log.d(TAG, "request path=" + apiPath + " 通道=" + mode
                 + (hint == null ? "" : " 记忆=" + hint));
 
@@ -619,6 +631,36 @@ public final class NetEaseWikiClient {
     }
 
     /**
+     * 按艺人 ID 取详情（用于识别「分享歌手」链接）。
+     *
+     * <p>原 APK 走 {@code /api/rep/ugc/artist/get}，参数 {@code artistId}，
+     * 返回 {@code data.{artistId, artistName, avatarPicUrl}}。
+     */
+    public static AlbumDraft.Artist fetchArtist(Context context, long artistId,
+                                                Http.CancelToken token) throws WikiException {
+        requireCredential(context);
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("artistId", artistId);
+        } catch (Exception ignored) {
+            // JSONObject.put(String, Object) 不会失败
+        }
+        JSONObject root = request(context, "/api/rep/ugc/artist/get", payload, token);
+        JSONObject data = dataObject(root);
+        if (data == null) {
+            throw new WikiException(WikiException.Kind.EMPTY, "找不到这个艺人");
+        }
+        String name = data.optString("artistName", data.optString("name", "")).trim();
+        if (name.isEmpty()) {
+            throw new WikiException(WikiException.Kind.EMPTY, "找不到这个艺人");
+        }
+        long id = data.optLong("artistId", artistId);
+        String avatar = data.optString("avatarPicUrl",
+                data.optString("artistAvatarPicUrl", ""));
+        return new AlbumDraft.Artist(id > 0 ? id : artistId, name, avatar);
+    }
+
+    /**
      * 曲风字典（{@code categoryName=STYLE_TAG}）。
      *
      * <p>与原 APK 完全一致：{@code tagName} 传空串取全部，{@code resType=2} 表示补充专辑。
@@ -668,27 +710,64 @@ public final class NetEaseWikiClient {
     /**
      * 提交补充专辑。
      *
-     * <p>该端点只接受 WEAPI，且失败重试可能造成<b>重复提交</b>，因此这里固定走网页通道并
-     * 只发一次请求，不做 eapi→weapi 的自动降级。
+     * <p><b>通道必须与参考实现一致：App 通道（EAPI）优先。</b>此前固定走网页通道时，
+     * 服务端在 WEAPI 链路上会丢弃 albumVo 里的 {@code notes}（专辑介绍），表现为专辑审核
+     * 通过后简介始终为空白；参考 APK 的同名请求走 EAPI，字段映射完整。
+     *
+     * <p>为避免重复提交，只有「确定未受理」时才降级为 WEAPI：
+     * <ul>
+     *   <li>EAPI 返回业务码 404 / -460 或其它失败码：降级重试一次；</li>
+     *   <li>超时 / 无法连接：请求可能已送达，直接抛出，不再换通道重发。</li>
+     * </ul>
      */
     public static JSONObject submitAlbum(Context context, long artistId, JSONObject albumVo,
                                          Http.CancelToken token) throws WikiException {
         requireCredential(context);
         JSONObject payload = new JSONObject();
         try {
-            // 原 APK 会先把嵌套 JSON 转成字符串再加密；直接下发 JSONObject 会被服务端
-            // 按 String 字段反序列化失败，返回业务码 500。
+            // 参考实现同样先把嵌套 JSON 转成字符串再加密（见 t1.h 的 Map 序列化）
             payload.put("albumVo", albumVo == null ? "" : albumVo.toString());
             payload.put("artistId", artistId);
         } catch (Exception ignored) {
             // 同上
         }
-        JSONObject root = NetEaseWeApi.post("/api/rep/ugc/add/artist/album",
-                webPayload(payload), WikiPrefs.cookie(context), token);
-        if (root == null) {
+        String cookie = WikiPrefs.cookie(context);
+        // 专辑介绍只存在于 albumVo 里；App 通道（EAPI）会完整保留，网页通道会丢弃，
+        // 因此这里把「有无简介 + 实际通道」打进日志，便于审核后核对。
+        int notesLength = albumVo == null ? 0 : albumVo.optString("notes", "").trim().length();
+
+        JSONObject root = null;
+        WikiException eapiError = null;
+        try {
+            root = NetEaseEapi.post(API_SUBMIT_ALBUM, payload,
+                    WikiPrefs.deviceId(context), cookie, token);
+        } catch (WikiException e) {
+            if (e.getKind() == WikiException.Kind.CANCELLED) {
+                throw e;
+            }
+            // 超时 / 连接失败时请求可能已被受理，换通道重发会重复提交
+            if (e.getKind() == WikiException.Kind.TIMEOUT
+                    || e.getKind() == WikiException.Kind.NO_NETWORK) {
+                throw e;
+            }
+            eapiError = e;
+        }
+        if (root != null) {
+            int code = root.optInt("code", 200);
+            if (code == 0 || code == 200) {
+                Log.d(TAG, "App 通道提交专辑成功，简介 " + notesLength + " 字");
+                return root;
+            }
+        }
+        Log.w(TAG, "App 通道提交专辑失败，改用网页通道重试（简介 " + notesLength + " 字）"
+                + (eapiError == null ? "" : "：" + eapiError.getMessage()));
+
+        JSONObject fallback = NetEaseWeApi.post(API_SUBMIT_ALBUM, webPayload(payload),
+                cookie, token);
+        if (fallback == null) {
             throw new WikiException(WikiException.Kind.BAD_JSON, "提交失败：空响应");
         }
-        ensureBusinessOk(root);
-        return root;
+        ensureBusinessOk(fallback);
+        return fallback;
     }
 }

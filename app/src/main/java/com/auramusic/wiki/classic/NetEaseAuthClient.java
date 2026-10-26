@@ -333,6 +333,17 @@ public final class NetEaseAuthClient {
     // 会话校验 / 账号资料
     // ------------------------------------------------------------------
 
+    private static String serverMessage(JSONObject root, String fallback) {
+        if (root == null) {
+            return fallback;
+        }
+        String message = root.optString("message", "");
+        if (message.trim().isEmpty()) {
+            message = root.optString("msg", "");
+        }
+        return message.trim().isEmpty() ? fallback : message.trim();
+    }
+
     /** 账号资料 */
     public static final class Profile {
         public final long userId;
@@ -407,5 +418,18 @@ public final class NetEaseAuthClient {
         } catch (Exception e) {
             return s;
         }
+    }
+
+    /** 构造请求参数，JSONException 统一收敛为 WikiException。 */
+    private static JSONObject params(Object... pairs) throws WikiException {
+        JSONObject object = new JSONObject();
+        try {
+            for (int i = 0; i + 1 < pairs.length; i += 2) {
+                object.put(String.valueOf(pairs[i]), pairs[i + 1]);
+            }
+        } catch (Exception e) {
+            throw new WikiException(WikiException.Kind.UNKNOWN, "参数构造失败", e);
+        }
+        return object;
     }
 }

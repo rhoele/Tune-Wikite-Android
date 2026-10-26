@@ -25,6 +25,7 @@ server/fcm/node_modules/
 lucida_*.json
 prefs_view.xml
 /*.png
+.diag/
 
 # ---- IDE ----
 .idea/

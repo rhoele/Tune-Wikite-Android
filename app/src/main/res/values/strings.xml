@@ -234,7 +234,7 @@
     <string name="settings_account_logged_out_title">未登录</string>
     <string name="settings_account_id">用户 ID · %1$d</string>
     <string name="settings_section_account_credentials">凭据</string>
-    <string name="settings_account_credentials_desc">登录凭据只保存在本机，不会上传到第三方服务器。二维码与 Cookie 两种登录方式统一在登录页完成，避免多处输入框状态不一致。</string>
+    <string name="settings_account_credentials_desc">登录凭据只保存在本机，不会上传到第三方服务器。二维码、Cookie 与手机号（网易云官方网页）三种登录方式统一在登录页完成，避免多处输入框状态不一致。</string>
     <string name="settings_cookie_label">手动粘贴 Cookie（高级）</string>
     <string name="settings_cookie_hint">MUSIC_U=xxxx…</string>
     <string name="settings_save">保存所有设置</string>
@@ -571,7 +571,7 @@
 
     <!-- ============ 声云资源下载 ============ -->
     <string name="sc_title">声云资源下载</string>
-    <string name="sc_desc">粘贴 SoundCloud 曲目或 set（播放列表）链接，先抓取母带原封面，再按所选格式下载音源；set 会按曲序批量下载，并可一键传入专辑上传。</string>
+    <string name="sc_desc">粘贴 SoundCloud 曲目或 set（播放列表）链接，先抓取母带原封面再取音源：优先级为「lucida API → lucida 浏览器会话 → 声云直连」；set 会按曲序批量下载，并可一键传入专辑上传。</string>
     <string name="sc_link_title">SoundCloud 链接</string>
     <string name="sc_link_hint">https://soundcloud.com/…</string>
     <string name="sc_action_resolve">解析信息</string>
@@ -583,9 +583,9 @@
     <string name="sc_action_download_cover">下载封面</string>
     <string name="sc_action_download_audio">下载音频</string>
     <string name="sc_format_title">音源格式</string>
-    <string name="sc_format_desc">格式差异只体现在请求的 downscale 字段；320k 以上为有损转码。</string>
+    <string name="sc_format_desc">格式差异体现在 lucida 的 downscale 字段；lucida 不可用时若选择直连，只会取 SoundCloud 实际提供的最高码率音源。</string>
     <string name="sc_convert_title">转换为 32-bit WAV</string>
-    <string name="sc_convert_desc">下载 m4a-aac-320 后，用 FFmpeg 等价参数 -vn -c:a pcm_s32le -ac 2 转成 32 bit PCM WAV。</string>
+    <string name="sc_convert_desc">下载 m4a-aac-320 音源后，用 FFmpeg 等价参数 -vn -c:a pcm_s32le -ac 2 转成 32 bit PCM WAV。</string>
     <string name="sc_handoff_title">传入专辑上传</string>
     <string name="sc_handoff_desc">把已下载的音频、封面与资料来源填入上传页；set 会按曲序依次添加。</string>
     <string name="sc_handoff_cover">传入封面</string>
@@ -595,17 +595,22 @@
     <string name="sc_handoff_none">请至少勾选一项要传入的内容</string>
     <string name="sc_action_handoff">传入专辑上传</string>
     <string name="sc_status_idle">等待操作</string>
+    <string name="sc_lucida_verifying">正在通过浏览器验证 lucida 服务…\n若长时间无响应，点此打开验证页面</string>
+    <string name="sc_fallback_title">lucida 暂不可用</string>
+    <string name="sc_fallback_message">%1$s\n\n是否改用声云直连解析下载？直连只能取 SoundCloud 公开音源（通常 96–160 kbps），可能与所选格式不同。</string>
+    <string name="sc_fallback_use_direct">使用直连</string>
+    <string name="sc_fallback_retry">重试</string>
+    <string name="sc_fallback_stop">停止</string>
+    <string name="sc_fallback_stopped">已停止下载</string>
     <string name="sc_set_count">%1$d 首</string>
     <string name="sc_set_unavailable">%1$d 首不可用</string>
     <string name="sc_set_preview_only">%1$d 首仅试听</string>
     <string name="sc_status_set_filtered">共 %1$d 首，%2$d 首不可用、%3$d 首仅试听，将下载 %4$d 首</string>
     <string name="sc_status_set_all_preview">%1$d 首均只提供试听片段（需 SoundCloud Go+），无法下载完整音频</string>
     <string name="sc_status_set_preview_partial">已下载 %1$d 首，%2$d 首仅试听已跳过</string>
-    <string name="sc_preview_only_error">该曲目在 SoundCloud 仅提供试听片段（需 Go+），无法获取完整音频</string>
     <string name="sc_action_download_all">下载全部 %1$d 首</string>
     <string name="sc_action_preview_only">仅提供试听片段</string>
     <string name="sc_progress_set">正在下载第 %1$d/%2$d 首… %3$d%%</string>
-    <string name="sc_progress_set_title">第 %1$d/%2$d 首：%3$s</string>
     <string name="sc_status_set_ok">已下载 %1$d 首</string>
     <string name="sc_status_set_partial">已下载 %1$d 首，%2$d 首失败</string>
     <string name="sc_set_empty">播放列表里没有可下载的曲目</string>
@@ -623,6 +628,12 @@
     <string name="sc_progress_audio">正在下载音频… %1$d%%</string>
     <string name="sc_progress_convert">正在转换 WAV…</string>
     <string name="sc_action_retry">重试</string>
+    <string name="sc_action_stop">停止</string>
+    <string name="sc_status_stopped">已停止下载</string>
+    <string name="sc_status_stopped_partial">已停止：成功 %1$d 首，%2$d 首未完成</string>
+    <string name="sc_failures_title">以下曲目下载失败</string>
+    <string name="sc_failure_retry">重下</string>
+    <string name="sc_progress_set_current">正在下载：%1$s（%2$d/%3$d）</string>
     <string name="sc_no_cover">没有封面</string>
 
     <!-- ============ 专辑上传 ============ -->
@@ -681,6 +692,8 @@
     <string name="au_submit_hint">提交前请确认目标艺人、封面与全部歌曲的音频均已上传完成。</string>
     <string name="au_song_disc_track">第 %1$d 碟 · 第 %2$d 首</string>
     <string name="au_song_uploading">上传中 %1$d%%</string>
+    <string name="au_song_queued">排队中</string>
+    <string name="au_song_preparing">准备上传…</string>
     <string name="au_song_uploaded">音频已上传</string>
     <string name="au_song_failed">音频上传失败</string>
     <string name="au_dialog_song_title">编辑歌曲</string>
@@ -693,6 +706,7 @@
     <string name="au_song_language">语种 *</string>
     <string name="au_song_tags">曲风</string>
     <string name="au_action_replace_audio">重新选择音频</string>
+    <string name="au_song_audio_file">当前文件：%1$s</string>
     <string name="au_action_remove_song">移除歌曲</string>
     <string name="au_action_save">保存</string>
     <string name="au_action_cancel">取消</string>
@@ -746,4 +760,89 @@
     <string name="crop_title">调整专辑封面</string>
     <string name="crop_desc">拖动或双指缩放图片，使其填满 1:1 方框，完成后返回上传页。</string>
     <string name="crop_done">完成</string>
+
+    <!-- ============ 手机号登录 ============ -->
+    <string name="login_tab_phone">手机号</string>
+    <string name="login_web_title">网易云音乐登录</string>
+    <string name="login_web_hint">在网易云自己的登录页里用手机号 + 验证码（或密码）登录，登录完成后会自动回到这里。应用不会看到也不会保存你的密码。</string>
+    <string name="login_web_action">打开网易云登录页</string>
+
+    <!-- ============ 云小编中心 ============ -->
+    <string name="cloud_editor_title">云小编中心</string>
+    <string name="cloud_editor_entry_desc">等级、总积分、积分流水与贡献排行榜</string>
+    <string name="cloud_editor_refresh">刷新</string>
+    <string name="cloud_editor_level">Lv.%1$d</string>
+    <string name="cloud_editor_total_points">总积分</string>
+    <string name="cloud_editor_available_points">可用积分</string>
+    <string name="cloud_editor_today_points">今日积分</string>
+    <string name="cloud_editor_my_rank">我的排名</string>
+    <string name="cloud_editor_rank_value">第 %1$d 名</string>
+    <string name="cloud_editor_rank_none">暂无排名</string>
+    <string name="cloud_editor_next_level">距 Lv.%1$d 还需 %2$d 积分</string>
+    <string name="cloud_editor_sign">每日签到</string>
+    <string name="cloud_editor_signed">今日已签到</string>
+    <string name="cloud_editor_sign_reward">+%1$d 积分</string>
+    <string name="cloud_editor_sign_days">已连续签到 %1$d 天</string>
+    <string name="cloud_editor_sign_ok">签到成功，+%1$d 积分</string>
+    <string name="cloud_editor_privileges">云小编权益</string>
+    <string name="cloud_editor_vip_claimable">可领取 1 日黑胶会员</string>
+    <string name="cloud_editor_vip_claimed">今日已领取 1 日黑胶会员</string>
+    <string name="cloud_editor_vip_locked">积分达到 50 后可领取 1 日黑胶会员</string>
+    <string name="cloud_editor_vip_action">领取</string>
+    <string name="cloud_editor_activity_default_title">曲库审核任务</string>
+    <string name="cloud_editor_activity_progress">%1$d/%2$d · 完成可得 %3$d 积分</string>
+    <string name="cloud_editor_activity_unfinished">未完成</string>
+    <string name="cloud_editor_claim">领取</string>
+    <string name="cloud_editor_claimed">已领取</string>
+    <string name="cloud_editor_lottery">今日剩余抽奖次数：%1$d</string>
+    <string name="cloud_editor_lottery_action">抽奖</string>
+    <string name="cloud_editor_lottery_drawing">抽奖中…</string>
+    <string name="cloud_editor_lottery_result">抽奖结果：%1$s</string>
+    <string name="cloud_editor_lottery_thanks">谢谢参与</string>
+    <string name="cloud_editor_lottery_failed">抽奖失败：%1$s</string>
+    <string name="cloud_editor_rank_title">贡献排行榜</string>
+    <string name="cloud_editor_rank_day">日榜</string>
+    <string name="cloud_editor_rank_month">月榜</string>
+    <string name="cloud_editor_rank_total">总榜</string>
+    <string name="cloud_editor_rank_empty">榜单暂无数据</string>
+    <string name="cloud_editor_rank_updated">最近更新：%1$s</string>
+    <string name="cloud_editor_rank_more_count">显示更多（%1$d/%2$d）</string>
+    <string name="cloud_editor_rank_points">%1$d 积分</string>
+    <string name="cloud_editor_flow">积分流水</string>
+    <string name="cloud_editor_flow_empty">暂无积分流水</string>
+    <string name="cloud_editor_loading">正在加载…</string>
+    <string name="cloud_editor_retry">重试</string>
+    <string name="cloud_editor_login_required">登录后可查看云小编等级、积分流水与贡献排行榜</string>
+    <string name="cloud_editor_login_action">去登录</string>
+    <string name="cloud_editor_claim_ok">领取成功</string>
+    <string name="cloud_editor_claim_failed">领取失败：%1$s</string>
+    <string name="cloud_editor_sign_failed">签到失败：%1$s</string>
+
+    <!-- 1.2.0 云小编页重构 -->
+    <string name="cloud_editor_action_sign">签到</string>
+    <string name="cloud_editor_action_vip">领会员</string>
+    <string name="cloud_editor_vip_available">会员可领</string>
+    <string name="cloud_editor_action_lottery">抽奖</string>
+    <string name="cloud_editor_lottery_limit">每日最多 3 次</string>
+    <string name="cloud_editor_auto_lottery">自动抽奖</string>
+    <string name="cloud_editor_auto_lottery_desc">一次点按抽完当日次数（最多 3 次）</string>
+    <string name="cloud_editor_auto_drawing">自动抽奖中…（%1$d/3）</string>
+    <string name="cloud_editor_tab_rank">排行榜</string>
+    <string name="cloud_editor_tab_tasks">积分任务</string>
+    <string name="cloud_editor_tasks_empty">暂无积分任务</string>
+    <string name="cloud_editor_more">更多信息</string>
+    <string name="cloud_editor_less">收起</string>
+    <string name="cloud_editor_show_tasks">显示积分任务</string>
+    <string name="cloud_editor_menu">页面设置</string>
+    <string name="cloud_editor_flow_count">共 %1$d 条</string>
+    <string name="cloud_editor_flow_meta">记录时间：%1$s</string>
+    <string name="cloud_editor_rank_me">我在%1$s</string>
+    <string name="cloud_editor_balance">积分余额</string>
+    <string name="cloud_editor_lottery_done">今日已抽完</string>
+    <string name="cloud_editor_lottery_remain">今日剩余 %1$d 次</string>
+    <string name="cloud_editor_vip_claimed_short">已领取</string>
+    <string name="cloud_editor_rank_updated_empty">榜单每日更新</string>
+    <string name="cloud_editor_anonymous">云小编</string>
+    <string name="cloud_editor_lottery_result_title">抽奖结果</string>
+    <string name="cloud_editor_level_max">已达到最高等级</string>
 </resources>

@@ -40,6 +40,45 @@ final class LucidaClient {
     private static final int READ_TIMEOUT = 60000;
     private static final long POLL_TIMEOUT_MS = 20 * 60 * 1000L;
 
+    /** WebView 过 Cloudflare 后拿到的会话：UA 必须与拿 cf_clearance 时完全一致 */
+    private static volatile String sessionCookie = "";
+    private static volatile String sessionUserAgent = "";
+
+    /** 注入浏览器会话；cookie 为空表示清除 */
+    static void setSession(String cookie, String userAgent) {
+        sessionCookie = cookie == null ? "" : cookie;
+        sessionUserAgent = userAgent == null ? "" : userAgent;
+    }
+
+    static boolean hasSession() {
+        return !sessionCookie.isEmpty();
+    }
+
+    /** 是否是 Cloudflare 挑战（403），用于决定是否需要走 WebView 过验证 */
+    static boolean isChallenge(Throwable error) {
+        String message = error == null ? "" : error.getMessage();
+        return message != null && (message.contains("HTTP 403") || message.contains("HTTP 503"));
+    }
+
+    private static String userAgent() {
+        return sessionUserAgent.isEmpty() ? UA : sessionUserAgent;
+    }
+
+    /** 模拟站内 fetch 的请求头：Cloudflare 对缺失 Sec-Fetch / Origin 的请求更敏感。 */
+    private static void applyHeaders(HttpURLConnection conn) {
+        conn.setRequestProperty("User-Agent", userAgent());
+        conn.setRequestProperty("Referer", BASE + "/");
+        conn.setRequestProperty("Accept", "*/*");
+        conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
+        if (!sessionCookie.isEmpty()) {
+            conn.setRequestProperty("Cookie", sessionCookie);
+            conn.setRequestProperty("Origin", BASE);
+            conn.setRequestProperty("Sec-Fetch-Site", "same-origin");
+            conn.setRequestProperty("Sec-Fetch-Mode", "cors");
+            conn.setRequestProperty("Sec-Fetch-Dest", "empty");
+        }
+    }
+
     private LucidaClient() {
     }
 
@@ -246,9 +285,7 @@ final class LucidaClient {
         conn.setConnectTimeout(CONNECT_TIMEOUT);
         conn.setReadTimeout(READ_TIMEOUT);
         conn.setInstanceFollowRedirects(true);
-        conn.setRequestProperty("User-Agent", UA);
-        conn.setRequestProperty("Referer", BASE + "/");
-        conn.setRequestProperty("Accept", "*/*");
+        applyHeaders(conn);
         try {
             int code = conn.getResponseCode();
             if (code < 200 || code >= 300) {
@@ -351,10 +388,7 @@ final class LucidaClient {
         conn.setConnectTimeout(CONNECT_TIMEOUT);
         conn.setReadTimeout(READ_TIMEOUT);
         conn.setInstanceFollowRedirects(true);
-        conn.setRequestProperty("User-Agent", UA);
-        conn.setRequestProperty("Referer", BASE + "/");
-        conn.setRequestProperty("Accept", "*/*");
-        conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
+        applyHeaders(conn);
         if (body != null) {
             conn.setDoOutput(true);
             conn.setRequestProperty("Content-Type", "application/json");

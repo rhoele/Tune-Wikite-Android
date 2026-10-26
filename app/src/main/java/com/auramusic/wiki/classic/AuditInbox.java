@@ -103,13 +103,25 @@ final class AuditInbox {
         final String artist;
         final int status;
         final long time;
+        /**
+         * 条目所属查询类型（{@link NetEaseWikiClient#TYPE_VALUES}）。
+         *
+         * <p>0 表示未知：点开消息时按全部类型扫描。知道类型时只翻一个分类，
+         * 定位「较久远的历史贡献」不会因为要扫六个分类而变慢。
+         */
+        final int type;
 
         Entry(String key, String name, String artist, int status, long time) {
+            this(key, name, artist, status, time, 0);
+        }
+
+        Entry(String key, String name, String artist, int status, long time, int type) {
             this.key = key;
             this.name = name;
             this.artist = artist;
             this.status = status;
             this.time = time;
+            this.type = type;
         }
 
         JSONObject toJson() {
@@ -120,6 +132,7 @@ final class AuditInbox {
                 o.put("artist", artist);
                 o.put("status", status);
                 o.put("time", time);
+                o.put("type", type);
             } catch (Exception ignored) {
                 // 字段均为非空字符串 / 基本类型，不会失败
             }
@@ -132,7 +145,7 @@ final class AuditInbox {
             }
             return new Entry(o.optString("key", ""), o.optString("name", ""),
                     o.optString("artist", ""), o.optInt("status", Integer.MIN_VALUE),
-                    o.optLong("time", 0L));
+                    o.optLong("time", 0L), o.optInt("type", 0));
         }
     }
 
@@ -207,7 +220,7 @@ final class AuditInbox {
                 // 同一条结果可能先由推送写入（无稳定键），再被轮询发现：合并为一条
                 removePushDuplicates(entries, item.displayName(), item.status);
                 upsert(entries, new Entry(key, item.displayName(), item.displayArtist(),
-                        item.status, item.createTime));
+                        item.status, item.createTime, queryTypeOf(item)));
                 changed = true;
                 unreadAdded = true;
             }
@@ -236,6 +249,21 @@ final class AuditInbox {
         return status == Contribution.Status.APPROVED
                 || status == Contribution.Status.REJECTED
                 || status == Contribution.Status.PARTIAL;
+    }
+
+    /**
+     * 取条目的查询类型；取值不在 {@link NetEaseWikiClient#TYPE_VALUES} 里时返回 0（未知）。
+     *
+     * <p>跳转时按该类型查询能直接命中分类页，不必把六个分类都翻一遍。
+     */
+    static int queryTypeOf(Contribution item) {
+        int type = item.routeType();
+        for (int value : NetEaseWikiClient.TYPE_VALUES) {
+            if (value == type) {
+                return type;
+            }
+        }
+        return 0;
     }
 
     /**

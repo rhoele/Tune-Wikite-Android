@@ -11,6 +11,7 @@ import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Rect;
+import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
@@ -20,6 +21,7 @@ import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
@@ -95,6 +97,15 @@ public class AlbumUploadView extends FrameLayout {
     };
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    /**
+     * 上传线程池：封面与多首音频并行上传。
+     *
+     * <p>3 个线程是经验值：再多容易被 NOS 限速，反而拉长整体耗时；
+     * 进度聚合与异常回调仍统一 post 回主线程，保证 UI 状态只在主线程修改。
+     */
+    private final ExecutorService uploadExecutor = Executors.newFixedThreadPool(4);
+    /** 读取音频标签的独立线程池：与上传解耦，保证后加入的曲目也能立刻改名 */
+    private final ExecutorService metaExecutor = Executors.newFixedThreadPool(3);
     /** 艺人搜索独立线程：避免长音频上传阻塞输入联想 */
     private final ExecutorService searchExecutor = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -171,6 +182,8 @@ public class AlbumUploadView extends FrameLayout {
     /** 一级搜索防抖与乱序保护 */
     private final Runnable searchRunnable = this::runArtistSearch;
     private int artistSearchSeq;
+    /** 最近一次通过分享链接识别到的艺人 ID，避免同一链接重复请求 */
+    private long resolvedArtistLinkId = -1L;
     private boolean suppressArtistSearch;
     private File coverRawFile;
     private File coverSquareFile;
@@ -266,6 +279,7 @@ public class AlbumUploadView extends FrameLayout {
         bindFieldErrorClear();
         // 多行字段内容超出框体时，允许在框内上下滑动查看
         InputScroll.enable(albumName, albumSubtitle, albumTrans, company, source, notes);
+        installFocusClearing();
 
         artistAdapter = new ArtistResultAdapter(this::onTargetArtistPicked);
         artistResults.setLayoutManager(new LinearLayoutManager(context));
@@ -331,6 +345,16 @@ public class AlbumUploadView extends FrameLayout {
                     return;
                 }
                 String keyword = s == null ? "" : s.toString().trim();
+                // 粘贴「分享歌手」口令时直接按链接里的 ID 取艺人，不再走关键词搜索
+                long linkId = WikiIdParser.parseArtistId(keyword);
+                if (linkId > 0) {
+                    main.removeCallbacks(searchRunnable);
+                    if (linkId != resolvedArtistLinkId || targetArtist == null) {
+                        resolveArtistLink(linkId);
+                    }
+                    return;
+                }
+                resolvedArtistLinkId = -1L;
                 main.removeCallbacks(searchRunnable);
                 if (keyword.isEmpty()) {
                     artistSearchSeq++;
@@ -465,6 +489,9 @@ public class AlbumUploadView extends FrameLayout {
                         // Expressive 拖拽：拿起时抬升 + 轻微放大，并有独立触感
                         HapticsManager.longPress(viewHolder.itemView);
                         lift(viewHolder.itemView, true);
+                    } else if (actionState == ItemTouchHelper.ACTION_STATE_IDLE) {
+                        // 拖拽因任何原因结束（含被动画/滚动打断）时兜底复位所有行
+                        resetAllLifts(songList);
                     }
                 }
 
@@ -473,8 +500,13 @@ public class AlbumUploadView extends FrameLayout {
                                       RecyclerView.ViewHolder viewHolder) {
                     super.clearView(recyclerView, viewHolder);
                     lift(viewHolder.itemView, false);
+                    // RecyclerView 换位时可能把抬升状态留在别的行上，统一复位
+                    resetAllLifts(recyclerView);
                     HapticsManager.tap(viewHolder.itemView);
                     renumber();
+                    // 换位后的行不会自动重绑：整行刷一次，保证曲序 / 上传进度 / 对勾
+                    // 与当前歌曲一致，不残留拖拽前的状态
+                    adapter.refreshAfterDrag();
                 }
 
                 @Override
@@ -497,14 +529,40 @@ public class AlbumUploadView extends FrameLayout {
         if (itemView == null) {
             return;
         }
+        if (!lifted) {
+            // 直接复位而不是播放回落动画：松手时视图可能已被 RecyclerView 换位 / 回收，
+            // 动画还没跑完就被取消，会让个别行残留「放大 + 阴影」
+            resetLift(itemView);
+            return;
+        }
         itemView.animate()
-                .scaleX(lifted ? 1.02f : 1f)
-                .scaleY(lifted ? 1.02f : 1f)
-                .translationZ(lifted ? dp(10) : 0f)
+                .scaleX(1.02f)
+                .scaleY(1.02f)
+                .translationZ(dp(10))
                 .setDuration(MotionManager.controlDuration(getContext()))
-                .setInterpolator(lifted ? MotionManager.emphasized(getContext())
-                        : MotionManager.standard(getContext()))
+                .setInterpolator(MotionManager.emphasized(getContext()))
                 .start();
+    }
+
+    /** 把单行恢复到静止外观（无放大、无抬升阴影）。 */
+    private void resetLift(View itemView) {
+        if (itemView == null) {
+            return;
+        }
+        itemView.animate().cancel();
+        itemView.setScaleX(1f);
+        itemView.setScaleY(1f);
+        itemView.setTranslationZ(0f);
+    }
+
+    /** 复位列表中所有可见行；拖拽结束或被打断时调用，避免抬升状态残留在任意一行上。 */
+    private void resetAllLifts(@Nullable RecyclerView list) {
+        if (list == null) {
+            return;
+        }
+        for (int i = 0; i < list.getChildCount(); i++) {
+            resetLift(list.getChildAt(i));
+        }
     }
 
     /** 页面主滚动容器（供底栏模糊跟随超限位移）。 */
@@ -598,7 +656,9 @@ public class AlbumUploadView extends FrameLayout {
             song.file = item.file;
             song.mime = guessMime(item.file.getName());
             song.name = TextUtils.isEmpty(item.title)
-                    ? stripExt(item.file.getName()) : item.title;
+                    ? AlbumDraft.cleanSongName(stripExt(item.file.getName())) : item.title;
+            // 声云解析出的标题已经是正式歌名，不再被音频标签覆盖
+            song.nameEdited = !TextUtils.isEmpty(item.title);
             song.artists.addAll(albumArtists);
             song.language = selectedLanguages.isEmpty() ? "" : selectedLanguages.iterator().next();
             song.tags.addAll(selectedTags);
@@ -611,6 +671,7 @@ public class AlbumUploadView extends FrameLayout {
             updateSongsEmpty();
             // 插入完成后再启动上传，避免 refreshSong 命中尚未公布的位置
             for (AlbumDraft.Song song : added) {
+                resolveSongName(song);
                 uploadSong(song);
             }
         }
@@ -785,6 +846,76 @@ public class AlbumUploadView extends FrameLayout {
 
     private void showArtistResults(List<AlbumDraft.Artist> items, boolean fromSearch) {
         showArtistResults(items, fromSearch, null);
+    }
+
+    /**
+     * 点击页面空白区域时取消输入框焦点并收起输入法。
+     *
+     * <p>只处理落在「当前焦点输入框」之外的按下事件：点在输入框内继续编辑，
+     * 点按钮 / chip 等控件则不拦截，避免影响它们自己的点击与波纹。
+     */
+    private void installFocusClearing() {
+        scroll.setOnTouchListener((v, event) -> {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                View focused = findFocus();
+                if (focused instanceof EditText && !hitInside(focused, event)) {
+                    clearFieldFocus();
+                }
+            }
+            return false;
+        });
+    }
+
+    private boolean hitInside(View view, MotionEvent event) {
+        if (view == null || view.getVisibility() != View.VISIBLE) {
+            return false;
+        }
+        int[] location = new int[2];
+        view.getLocationOnScreen(location);
+        float x = event.getRawX();
+        float y = event.getRawY();
+        return x >= location[0] && x <= location[0] + view.getWidth()
+                && y >= location[1] && y <= location[1] + view.getHeight();
+    }
+
+    /** 取消当前输入框焦点并收起输入法（打开弹窗前也复用此逻辑）。 */
+    private void clearFieldFocus() {
+        View focused = findFocus();
+        if (focused != null) {
+            focused.clearFocus();
+        }
+        hideKeyboard();
+    }
+
+    /** 分享链接 → 艺人 ID → 详情；成功后直接作为目标艺人填入。 */
+    private void resolveArtistLink(final long artistId) {
+        final int seq = ++artistSearchSeq;
+        resolvedArtistLinkId = artistId;
+        MotionManager.animateVisibility(getContext(), artistSearchProgress, true);
+        artistEmpty.setVisibility(View.GONE);
+        searchExecutor.execute(() -> {
+            AlbumDraft.Artist found = null;
+            String error = null;
+            try {
+                found = NetEaseWikiClient.fetchArtist(
+                        getContext().getApplicationContext(), artistId, null);
+            } catch (Exception e) {
+                error = messageOf(e);
+            }
+            final AlbumDraft.Artist artist = found;
+            final String message = error;
+            main.post(() -> {
+                if (seq != artistSearchSeq) {
+                    return;
+                }
+                MotionManager.animateVisibility(getContext(), artistSearchProgress, false);
+                if (artist != null) {
+                    onTargetArtistPicked(artist);
+                } else if (message != null) {
+                    toast(message);
+                }
+            });
+        });
     }
 
     /** 渲染目标艺人的一级搜索结果；这里只允许选择已有艺人，不能直接新建。 */
@@ -1117,7 +1248,7 @@ public class AlbumUploadView extends FrameLayout {
         final File raw = coverRawFile;
         final File square = coverSquareFile;
         beginUploadTask(COVER_UPLOAD);
-        executor.execute(() -> {
+        uploadExecutor.execute(() -> {
             try {
                 NosUploader.NosFile rawNos = raw == null ? null
                         : NosUploader.uploadImage(getContext(), raw, guessMime(raw.getName()),
@@ -1183,6 +1314,7 @@ public class AlbumUploadView extends FrameLayout {
         adapter.notifyItemInserted(songs.size() - 1);
         renumber();
         updateSongsEmpty();
+        resolveSongName(song);
         uploadSong(song);
     }
 
@@ -1190,12 +1322,42 @@ public class AlbumUploadView extends FrameLayout {
         AlbumDraft.Song song = new AlbumDraft.Song();
         song.file = file;
         song.mime = guessMime(file.getName());
-        song.name = stripExt(file.getName());
+        // 文件名只作为兜底：去掉「01 - 」这类系统前缀，元数据里的歌名在开始上传时补全
+        song.name = AlbumDraft.cleanSongName(stripExt(file.getName()));
         song.artists.addAll(albumArtists);
         song.language = selectedLanguages.isEmpty() ? "" : selectedLanguages.iterator().next();
         // 与语种一致：专辑已选曲风时，后续添加的单曲默认沿用
         song.tags.addAll(selectedTags);
         return song;
+    }
+
+    private void showAudioFileName(TextView view, File file) {
+        if (view == null) {
+            return;
+        }
+        view.setText(file == null ? ""
+                : getContext().getString(R.string.au_song_audio_file, file.getName()));
+    }
+
+    /** 读取音频标签里的标题；没有标签或格式不支持时返回空串。 */
+    private String readAudioTitle(File file) {
+        if (file == null || !file.isFile()) {
+            return "";
+        }
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        try {
+            retriever.setDataSource(file.getAbsolutePath());
+            String title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
+            return title == null ? "" : title.trim();
+        } catch (Exception e) {
+            return "";
+        } finally {
+            try {
+                retriever.release();
+            } catch (Exception ignored) {
+                // 释放失败不影响上传
+            }
+        }
     }
 
     private void scanFolder(Uri treeUri) {
@@ -1224,6 +1386,7 @@ public class AlbumUploadView extends FrameLayout {
                 renumber();
                 updateSongsEmpty();
                 for (AlbumDraft.Song song : created) {
+                    resolveSongName(song);
                     uploadSong(song);
                 }
                 statusView.setText("已导入 " + found.size() + " 个音频");
@@ -1266,23 +1429,57 @@ public class AlbumUploadView extends FrameLayout {
         return false;
     }
 
-    private void uploadSong(AlbumDraft.Song song) {
-        song.uploading = true;
+    /**
+     * 用音频标签里的歌名补全/纠正曲目名。
+     *
+     * <p>与上传解耦：不再排在 3 条上传线程后面，所有新加入的曲目都会立刻排队读标签，
+     * 用户手动改过名字（{@link AlbumDraft.Song#nameEdited}）时不再覆盖。
+     */
+    private void resolveSongName(final AlbumDraft.Song song) {
+        if (song == null || song.nameEdited || song.file == null) {
+            return;
+        }
+        metaExecutor.execute(() -> {
+            final String cleaned = AlbumDraft.cleanSongName(readAudioTitle(song.file));
+            if (cleaned.isEmpty() || cleaned.equals(song.name)) {
+                return;
+            }
+            main.post(() -> {
+                if (song.nameEdited || cleaned.equals(song.name)) {
+                    return;
+                }
+                song.name = cleaned;
+                adapter.refreshSong(song);
+            });
+        });
+    }
+
+    private void uploadSong(final AlbumDraft.Song song) {
+        // 一入队就标记「排队中」：批量导入时只有 4 条能立刻占用线程，
+        // 其余必须让用户看到是在排队，而不是毫无反应地停在 0%
+        song.uploadStage = AlbumDraft.STAGE_QUEUED;
         song.uploadPercent = 0;
         song.uploadError = null;
         adapter.refreshSong(song);
         beginUploadTask(song);
-        executor.execute(() -> {
+        uploadExecutor.execute(() -> {
+            main.post(() -> {
+                if (song.uploadStage == AlbumDraft.STAGE_QUEUED) {
+                    song.uploadStage = AlbumDraft.STAGE_PREPARING;
+                    adapter.refreshSong(song);
+                }
+            });
             try {
                 NosUploader.NosFile nos = NosUploader.uploadAudio(getContext(), song.file,
                         song.mime, percent -> main.post(() -> {
+                            song.uploadStage = AlbumDraft.STAGE_UPLOADING;
                             song.uploadPercent = percent;
                             adapter.refreshSong(song);
                             updateUploadProgress(song, percent);
                         }));
                 main.post(() -> {
                     song.nosFile = nos;
-                    song.uploading = false;
+                    song.uploadStage = AlbumDraft.STAGE_IDLE;
                     song.uploadPercent = 100;
                     song.uploadError = null;
                     adapter.refreshSong(song);
@@ -1291,7 +1488,7 @@ public class AlbumUploadView extends FrameLayout {
                 });
             } catch (Exception e) {
                 main.post(() -> {
-                    song.uploading = false;
+                    song.uploadStage = AlbumDraft.STAGE_IDLE;
                     song.uploadError = messageOf(e);
                     adapter.refreshSong(song);
                     endUploadTask(song);
@@ -1358,6 +1555,9 @@ public class AlbumUploadView extends FrameLayout {
     // ------------------------------------------------------------------
 
     private void showSongEditor(final AlbumDraft.Song song) {
+        // 弹窗前先收起输入法并清焦点：遮罩层出现后原输入框仍处于激活态，
+        // 关闭弹窗时容易再次弹出键盘
+        clearFieldFocus();
         View root = LayoutInflater.from(getContext()).inflate(R.layout.dialog_song_edit, null);
         TextInputEditText name = root.findViewById(R.id.et_song_name);
         TextInputEditText subtitle = root.findViewById(R.id.et_song_subtitle);
@@ -1365,6 +1565,9 @@ public class AlbumUploadView extends FrameLayout {
         final TextView discValue = root.findViewById(R.id.tv_song_disc);
         final TextView trackValue = root.findViewById(R.id.tv_song_track);
         final ChipGroup artistChips = root.findViewById(R.id.chip_song_artists);
+        final ChipGroup removedChips = root.findViewById(R.id.chip_song_removed_artists);
+        final TextView removedLabel = root.findViewById(R.id.tv_song_removed_label);
+        final TextView audioFile = root.findViewById(R.id.tv_song_audio_file);
         final ChipGroup languageGroup = root.findViewById(R.id.chip_song_language);
         final ChipGroup tagGroup = root.findViewById(R.id.chip_song_tags);
 
@@ -1375,6 +1578,7 @@ public class AlbumUploadView extends FrameLayout {
         InputScroll.enable(name, subtitle, trans);
         discValue.setText(String.valueOf(Math.max(1, song.disc)));
         trackValue.setText(String.valueOf(Math.max(1, song.track)));
+        showAudioFileName(audioFile, song.file);
 
         final List<AlbumDraft.Artist> artists = new ArrayList<>(song.artists);
         final List<AlbumDraft.Artist> removed = new ArrayList<>(song.removedArtists);
@@ -1388,11 +1592,37 @@ public class AlbumUploadView extends FrameLayout {
         }
         final Set<AlbumDraft.Tag> tags = new LinkedHashSet<>(song.tags);
 
-        renderArtistChips(artistChips, artists, artist -> {
+        final Runnable[] renderRemoved = new Runnable[1];
+        final ArtistRemove onArtistRemoved = artist -> {
             if (!removed.contains(artist)) {
                 removed.add(0, artist);
             }
-        });
+            renderRemoved[0].run();
+        };
+        renderRemoved[0] = () -> {
+            MotionManager.beginAutoTransition(getContext(), removedChips);
+            removedChips.removeAllViews();
+            boolean has = !removed.isEmpty();
+            removedLabel.setVisibility(has ? View.VISIBLE : View.GONE);
+            removedChips.setVisibility(has ? View.VISIBLE : View.GONE);
+            for (final AlbumDraft.Artist artist : removed) {
+                Chip chip = newOutlinedChip(artist.name);
+                chip.setChipIcon(ContextCompat.getDrawable(getContext(), R.drawable.ic_add));
+                chip.setChipIconVisible(true);
+                chip.setOnClickListener(v -> {
+                    HapticsManager.tap(v);
+                    if (!artists.contains(artist)) {
+                        artists.add(artist);
+                    }
+                    removed.remove(artist);
+                    renderArtistChips(artistChips, artists, onArtistRemoved);
+                    renderRemoved[0].run();
+                });
+                removedChips.addView(chip);
+            }
+        };
+        renderArtistChips(artistChips, artists, onArtistRemoved);
+        renderRemoved[0].run();
         final boolean[] langExpanded = {false};
         final Runnable[] bindLanguages = new Runnable[1];
         bindLanguages[0] = () -> ChipOptions.bindLanguages(languageGroup, languages,
@@ -1433,6 +1663,7 @@ public class AlbumUploadView extends FrameLayout {
                     return;
                 }
                 song.name = newName;
+                song.nameEdited = true;
                 song.subtitle = text(subtitle);
                 song.transName = text(trans);
                 song.artists.clear();
@@ -1469,11 +1700,8 @@ public class AlbumUploadView extends FrameLayout {
                         artists.add(artist);
                     }
                     removed.remove(artist);
-                    renderArtistChips(artistChips, artists, removedArtist -> {
-                        if (!removed.contains(removedArtist)) {
-                            removed.add(0, removedArtist);
-                        }
-                    });
+                    renderArtistChips(artistChips, artists, onArtistRemoved);
+                    renderRemoved[0].run();
                 }));
         root.findViewById(R.id.row_song_disc).setOnClickListener(v ->
                 pickNumber(getContext().getString(R.string.au_song_disc), 1, 9,
@@ -1504,6 +1732,8 @@ public class AlbumUploadView extends FrameLayout {
             song.mime = guessMime(file.getName());
             song.nosFile = null;
             song.uploadError = null;
+            // 换音频不覆盖用户已经确认的歌名
+            song.nameEdited = true;
             deleteCachedCopy(previous);
             uploadSong(song);
         } catch (Exception e) {
@@ -1549,8 +1779,18 @@ public class AlbumUploadView extends FrameLayout {
             return;
         }
         final long artistId = targetArtist.id;
+        // 表单值统一在主线程取快照：后台线程读 EditText 不符合线程模型，
+        // 输入法尚无提交组合串时还可能取到空值（专辑介绍曾因此提交为空）
         final String albumNameValue = text(albumName);
+        final String subtitleValue = text(albumSubtitle);
+        final String transValue = text(albumTrans);
         final String companyValue = text(company);
+        final String languageValue = TextUtils.join(",", selectedLanguages);
+        final List<AlbumDraft.Tag> tagSnapshot = new ArrayList<>(selectedTags);
+        final String sourceValue = text(source);
+        final String notesValue = text(notes);
+        final long publishTimeValue = publishTime == null ? 0 : publishTime;
+        final List<AlbumDraft.Song> songSnapshot = new ArrayList<>(songs);
         // 提交期间用户仍可能改动表单，先把本次提交涉及的艺人快照下来，
         // 成功清空表单时据此恢复「可重新添加」待选项，避免目标艺人凭空消失
         final AlbumDraft.Artist submittedTarget = targetArtist;
@@ -1564,11 +1804,10 @@ public class AlbumUploadView extends FrameLayout {
         executor.execute(() -> {
             try {
                 JSONObject vo = AlbumDraft.toAlbumVo(albumNameValue,
-                        text(albumSubtitle), selectedAlbumType, text(albumTrans),
-                        albumArtists, companyValue, publishTime == null ? 0 : publishTime,
-                        TextUtils.join(",", selectedLanguages),
-                        new ArrayList<>(selectedTags), "", songs,
-                        text(source), text(notes), coverRawNos, coverSquareNos);
+                        subtitleValue, selectedAlbumType, transValue,
+                        submittedAlbumArtists, companyValue, publishTimeValue,
+                        languageValue, tagSnapshot, "", songSnapshot,
+                        sourceValue, notesValue, coverRawNos, coverSquareNos);
                 NetEaseWikiClient.submitAlbum(getContext(), artistId, vo, null);
                 main.post(() -> {
                     submitting = false;
@@ -1735,7 +1974,7 @@ public class AlbumUploadView extends FrameLayout {
             return invalid(ctx, R.string.au_err_source, R.id.et_au_source);
         }
         for (AlbumDraft.Song song : songs) {
-            if (song.uploading) {
+            if (song.uploading()) {
                 return invalid(ctx, R.string.au_err_audio_uploading, R.id.rv_au_songs);
             }
             if (!TextUtils.isEmpty(song.uploadError)) {
@@ -1867,6 +2106,23 @@ public class AlbumUploadView extends FrameLayout {
     // 工具
     // ------------------------------------------------------------------
 
+    /** 在目录内取一个不冲突的文件名：重名时追加 (2)、(3)…，保留扩展名。 */
+    private File uniqueFile(File dir, String name) {
+        File out = new File(dir, name);
+        if (!out.exists()) {
+            return out;
+        }
+        int dot = name.lastIndexOf('.');
+        String stem = dot > 0 ? name.substring(0, dot) : name;
+        String tail = dot > 0 ? name.substring(dot) : "";
+        int index = 1;
+        while (out.exists() && index < 999) {
+            index++;
+            out = new File(dir, stem + " (" + index + ")" + tail);
+        }
+        return out;
+    }
+
     private File copyToCache(Uri uri, String dirName, String ext) throws Exception {
         File dir = new File(getContext().getCacheDir(), dirName);
         if (!dir.isDirectory() && !dir.mkdirs()) {
@@ -1879,7 +2135,9 @@ public class AlbumUploadView extends FrameLayout {
         if (!name.contains(".")) {
             name = name + "." + ext;
         }
-        File out = new File(dir, System.currentTimeMillis() + "-" + name);
+        // 保留原始文件名（歌名与「当前文件」都要靠它），重名时用序号兜底，
+        // 不再拼毫秒时间戳，否则会把 "1792938469390-" 带进歌名
+        File out = uniqueFile(dir, name);
         ContentResolver resolver = getContext().getContentResolver();
         try (InputStream in = resolver.openInputStream(uri);
              OutputStream os = new FileOutputStream(out)) {

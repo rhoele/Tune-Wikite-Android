@@ -5,7 +5,6 @@ import org.json.JSONObject;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.Base64;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
@@ -21,7 +20,8 @@ import javax.crypto.spec.SecretKeySpec;
  *   <li>{@code data = 载荷.toString()}；
  *       {@code digest = md5("nobody" + apiPath + "use" + data + "md5forencrypt")}（小写十六进制）；</li>
  *   <li>{@code value = apiPath + "-36cd479b6b5-" + data + "-36cd479b6b5-" + digest}，
- *       用固定密钥 {@value #AES_KEY_TEXT} 做 AES/ECB/PKCS5Padding 后 Base64 即 {@code params}；</li>
+ *       用固定密钥 {@value #AES_KEY_TEXT} 做 AES/ECB/PKCS5Padding 后转<b>大写十六进制</b>
+ *       即 {@code params}（参考实现 {@code LX1/q} 的 {@code %02X}）；</li>
  *   <li>以表单形式 POST 到 {@code https://interface3.music.163.com/eapi/<去掉 /api 前缀的 path>}。</li>
  * </ol>
  *
@@ -64,8 +64,10 @@ final class NetEaseEapi {
     static JSONObject post(String apiPath, JSONObject payload, String deviceId, String cookie,
                            Http.CancelToken token) throws WikiException {
         String params = encrypt(apiPath, payload, deviceId, cookie);
+        // 参考实现拼的是 "https://interface3.music.163.com/e" + apiPath + "/"，
+        // 与 eapi 前缀等价；末尾斜杠保持一致，避免个别网关按严格路径匹配时 404。
         String url = BASE_URL + (apiPath.startsWith(API_PREFIX)
-                ? apiPath.substring(API_PREFIX.length()) : apiPath);
+                ? apiPath.substring(API_PREFIX.length()) : apiPath) + "/";
 
         String body = Http.postForm(url, "params=" + urlEncode(params), UA, REFERER, null,
                 cookieHeader(deviceId, cookie), token);
@@ -74,7 +76,8 @@ final class NetEaseEapi {
 
     // ------------------------------------------------------------------
 
-    private static String encrypt(String apiPath, JSONObject payload, String deviceId, String cookie)
+    /** 供单测校验报文格式；生产路径请走 {@link #post}。 */
+    static String encrypt(String apiPath, JSONObject payload, String deviceId, String cookie)
             throws WikiException {
         try {
             JSONObject body = payload == null ? new JSONObject() : new JSONObject(payload.toString());
@@ -103,11 +106,20 @@ final class NetEaseEapi {
 
             Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
             cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(AES_KEY, "AES"));
-            return Base64.getEncoder()
-                    .encodeToString(cipher.doFinal(value.getBytes(StandardCharsets.UTF_8)));
+            return hexUpper(cipher.doFinal(value.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
             throw new WikiException(WikiException.Kind.UNKNOWN, "EAPI 加密失败：" + e.getMessage(), e);
         }
+    }
+
+    /** 密文转大写十六进制：App 通道的 {@code params} 不是 Base64，用 Base64 会被服务端直接判为非法。 */
+    private static String hexUpper(byte[] bytes) {
+        char[] digits = "0123456789ABCDEF".toCharArray();
+        StringBuilder sb = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) {
+            sb.append(digits[(b >> 4) & 0xF]).append(digits[b & 0xF]);
+        }
+        return sb.toString();
     }
 
     /**

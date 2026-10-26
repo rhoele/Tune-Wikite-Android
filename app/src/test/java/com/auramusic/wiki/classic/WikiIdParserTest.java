@@ -41,6 +41,29 @@ public class WikiIdParserTest {
     }
 
     @Test
+    public void artistShareTextIsParsed() {
+        String share = "分享歌手: Inaharu 快来听Inaharu的热门单曲吧 "
+                + "https://y.music.163.com/m/artist?id=56949793 （来自@网易云音乐）";
+        assertEquals(56949793L, WikiIdParser.parseArtistId(share));
+    }
+
+    @Test
+    public void artistLinkVariantsAreParsed() {
+        assertEquals(56949793L,
+                WikiIdParser.parseArtistId("https://music.163.com/#/artist?id=56949793"));
+        assertEquals(56949793L,
+                WikiIdParser.parseArtistId("https://music.163.com/m/artist?id=56949793"));
+        assertEquals(56949793L,
+                WikiIdParser.parseArtistId("https://music.163.com/artist?id=56949793"));
+    }
+
+    @Test
+    public void plainKeywordHasNoArtistId() {
+        assertEquals(-1L, WikiIdParser.parseArtistId("Inaharu"));
+        assertEquals(-1L, WikiIdParser.parseArtistId(""));
+    }
+
+    @Test
     public void shareTextWithLooseDigitsIsParsed() {
         assertEquals(347230L, WikiIdParser.parse("分享单曲 347230 来自网易云音乐"));
     }

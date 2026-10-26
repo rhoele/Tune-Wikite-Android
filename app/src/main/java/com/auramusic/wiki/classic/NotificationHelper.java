@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 
+import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -112,6 +113,18 @@ public final class NotificationHelper {
 
     /** 推送一条审核结果通知 */
     public static void postAuditResult(Context context, String title, Contribution.Status status) {
+        postAuditResult(context, title, status, null, 0, 0L);
+    }
+
+    /**
+     * 审核结果通知（带跳转定位信息）。
+     *
+     * <p>审核结果可能来自很久以前提交的条目，仅切到「我的贡献」会停在最新一页、
+     * 目标卡片不在可视范围；因此把稳定键 / 分类 / 提交时间一并带给列表页，
+     * 点击通知即可直接跳到那张卡片。
+     */
+    public static void postAuditResult(Context context, String title, Contribution.Status status,
+                                       String focusKey, int focusType, long submitTime) {
         if (!notificationsAllowed(context)) {
             return;
         }
@@ -146,7 +159,8 @@ public final class NotificationHelper {
                 .setContentText("你在网易云曲库提交的资料已有审核反馈，点击查看详情。")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
-                .setContentIntent(contentIntent(context, notificationId));
+                .setContentIntent(contentIntent(context, notificationId,
+                        focusKey, focusType, submitTime));
 
         try {
             nm.notify(notificationId, builder.build());
@@ -157,8 +171,20 @@ public final class NotificationHelper {
 
     /** 点击通知回到「我的贡献」目的地 */
     private static PendingIntent contentIntent(Context context, int requestCode) {
+        return contentIntent(context, requestCode, null, 0, 0L);
+    }
+
+    /** 点击通知回到「我的贡献」，并带上可选的条目定位信息。 */
+    private static PendingIntent contentIntent(Context context, int requestCode,
+                                               @Nullable String focusKey, int focusType,
+                                               long submitTime) {
         Intent intent = new Intent(context, MainActivity.class);
         intent.putExtra(MainActivity.EXTRA_DESTINATION, MainActivity.DEST_CONTRIBUTIONS);
+        if (focusKey != null && !focusKey.trim().isEmpty()) {
+            intent.putExtra(MainActivity.EXTRA_FOCUS_KEY, focusKey.trim());
+            intent.putExtra(MainActivity.EXTRA_FOCUS_TYPE, focusType);
+            intent.putExtra(MainActivity.EXTRA_FOCUS_SUBMIT, submitTime);
+        }
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         return PendingIntent.getActivity(context, requestCode, intent,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);

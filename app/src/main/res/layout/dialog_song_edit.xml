@@ -163,6 +163,23 @@
             android:text="@string/au_action_add_artist"
             app:icon="@drawable/ic_person_add" />
 
+        <!-- 被移除的艺人：与专辑编辑页一致，直接回到这里可一键加回 -->
+        <TextView
+            android:id="@+id/tv_song_removed_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_xs"
+            android:text="@string/au_artist_suggest"
+            android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting"
+            android:visibility="gone" />
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chip_song_removed_artists"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_xs"
+            android:visibility="gone" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -198,6 +215,17 @@
             android:minHeight="48dp"
             android:text="@string/au_action_replace_audio"
             app:icon="@drawable/ic_music_note" />
+
+        <!-- 当前音频文件名：完整展示（含扩展名），长文件名自动换行不截断 -->
+        <TextView
+            android:id="@+id/tv_song_audio_file"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_sm"
+            android:layout_marginTop="2dp"
+            android:layout_marginEnd="@dimen/spacing_sm"
+            android:textIsSelectable="true"
+            android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
 
     </LinearLayout>
 

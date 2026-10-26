@@ -36,7 +36,13 @@ final class NosUploader {
     private static final String UA_UPLOAD = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
     private static final String REFERER = "https://music.163.com/st/wiki/";
-    private static final int CHUNK_SIZE = 4 * 1024 * 1024;
+    /**
+     * 分块大小：1MB。
+     *
+     * <p>原实现的 4MB 分块在手机上意味着进度条只会跳 0 → 25 → 50 → 75 → 100，
+     * 中间长时间没有任何变化，观感就是「上传没开始」；1MB 让进度反馈明显更连续。
+     */
+    private static final int CHUNK_SIZE = 1 * 1024 * 1024;
 
     private NosUploader() {
     }

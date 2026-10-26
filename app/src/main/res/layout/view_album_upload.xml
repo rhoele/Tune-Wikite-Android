@@ -549,7 +549,7 @@
                         android:layout_height="wrap_content"
                         android:gravity="top|start"
                         android:inputType="textMultiLine"
-                        android:maxLines="6"
+                        android:maxLines="30"
                         android:minLines="3"
                         android:overScrollMode="ifContentScrolls"
                         android:scrollbars="vertical" />

@@ -24,6 +24,18 @@ public final class WikiIdParser {
     /** 兜底：任意 6 位以上数字串（分享口令中常见纯 ID 片段） */
     private static final Pattern LOOSE_ID = Pattern.compile("(?<![0-9])([1-9][0-9]{5,19})(?![0-9])");
 
+    /**
+     * 艺人分享链接：兼容
+     * {@code https://y.music.163.com/m/artist?id=56949793}、
+     * {@code https://music.163.com/#/artist?id=56949793}、
+     * {@code https://music.163.com/m/artist?id=56949793} 等形态。
+     *
+     * <p>分享口令通常形如「分享歌手: Inaharu 快来听… https://y.music.163.com/m/artist?id=…」，
+     * 因此这里是「在整段文本里找链接」，而不是要求输入本身就是链接。
+     */
+    private static final Pattern ARTIST_LINK = Pattern.compile(
+            "163\\.com/(?:#/|m/)?artist[^\\s]{0,120}?[?&#]id=([1-9][0-9]{0,19})(?![0-9])");
+
     private WikiIdParser() {
     }
 
@@ -68,6 +80,20 @@ public final class WikiIdParser {
     /** 是否为可直接使用的合法 ID */
     public static boolean isValid(long id) {
         return id > 0L;
+    }
+
+    /**
+     * 从艺人分享文本中解析艺人 ID。
+     *
+     * @param raw 用户粘贴的分享口令或艺人链接
+     * @return 艺人 ID；文本中没有艺人链接时返回 -1
+     */
+    public static long parseArtistId(String raw) {
+        if (raw == null) {
+            return -1L;
+        }
+        Matcher matcher = ARTIST_LINK.matcher(raw.trim());
+        return matcher.find() ? safeParse(matcher.group(1)) : -1L;
     }
 
     /** 归一化输出：解析失败返回 null，成功返回数字字符串 */

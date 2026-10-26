@@ -52,6 +52,23 @@ public final class WikiPrefs {
     public static final String KEY_UPDATE_CHECK_AT = "app_update_check_at";
     /** 用户主动「忽略此版本」的版本号；只有更新的版本才会再次提醒 */
     private static final String KEY_UPDATE_IGNORED = "app_update_ignored_version";
+    /**
+     * 云小编页是否展示「积分任务」模块。
+     *
+     * <p>该模块使用率低，默认隐藏；开关暂放在云小编页右上角的页面设置里。
+     * 后续若迁移到「自动化」设置页，只需复用同一键名，不影响已保存的偏好。
+     */
+    public static final String KEY_CLOUD_SHOW_TASKS = "cloud_editor_show_tasks";
+    /**
+     * 云小编页「自动抽奖」开关：一次操作连续抽完当日剩余次数（最多 3 次）。
+     *
+     * <p>与积分任务开关一样先落在 WikiPrefs，便于后续整体迁移到自动化设置页。
+     */
+    public static final String KEY_CLOUD_AUTO_LOTTERY = "cloud_editor_auto_lottery";
+    /** 云小编抽奖：最近一次计数所属的自然日（yyyyMMdd） */
+    private static final String KEY_CLOUD_LOTTERY_DAY = "cloud_editor_lottery_day";
+    /** 云小编抽奖：当日已成功抽奖次数（跨天自动归零） */
+    private static final String KEY_CLOUD_LOTTERY_USED = "cloud_editor_lottery_used";
 
     // ------------------------------------------------------------------
     // 交互与动效（第二阶段：控件体验 / 导航栏 / 转场）
@@ -133,6 +150,54 @@ public final class WikiPrefs {
 
     public static boolean hasCookie(Context context) {
         return !cookie(context).isEmpty();
+    }
+
+    /** 云小编页是否展示积分任务模块，默认隐藏（使用率低） */
+    public static boolean showCloudTasks(Context context) {
+        return get(context).getBoolean(KEY_CLOUD_SHOW_TASKS, false);
+    }
+
+    public static void setShowCloudTasks(Context context, boolean show) {
+        get(context).edit().putBoolean(KEY_CLOUD_SHOW_TASKS, show).apply();
+    }
+
+    /** 云小编页是否自动连抽，默认关闭 */
+    public static boolean autoLottery(Context context) {
+        return get(context).getBoolean(KEY_CLOUD_AUTO_LOTTERY, false);
+    }
+
+    public static void setAutoLottery(Context context, boolean enabled) {
+        get(context).edit().putBoolean(KEY_CLOUD_AUTO_LOTTERY, enabled).apply();
+    }
+
+    /**
+     * 今日已成功抽奖的次数。
+     *
+     * <p>服务端返回的「剩余次数」并不可靠（实测次数用尽后仍返回可用），
+     * 因此在本地按自然日记一份硬上限，跨天自动归零。
+     */
+    public static int lotteryUsedToday(Context context) {
+        SharedPreferences prefs = get(context);
+        String today = dayStamp();
+        if (!today.equals(prefs.getString(KEY_CLOUD_LOTTERY_DAY, ""))) {
+            return 0;
+        }
+        return Math.max(0, prefs.getInt(KEY_CLOUD_LOTTERY_USED, 0));
+    }
+
+    /** 记一次成功抽奖，返回更新后的今日已用次数。 */
+    public static int markLotteryUsed(Context context) {
+        int used = lotteryUsedToday(context) + 1;
+        get(context).edit()
+                .putString(KEY_CLOUD_LOTTERY_DAY, dayStamp())
+                .putInt(KEY_CLOUD_LOTTERY_USED, used)
+                .apply();
+        return used;
+    }
+
+    private static String dayStamp() {
+        return new java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.CHINA)
+                .format(new java.util.Date());
     }
 
     public static boolean backgroundAuditEnabled(Context context) {

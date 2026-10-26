@@ -333,7 +333,10 @@ public class AuditPollingService extends Service {
             updatedDoneIds.add(key);
             if (!firstRun
                     && !delivered.contains(item.displayName() + "|" + item.status)) {
-                NotificationHelper.postAuditResult(context, item.displayName(), status);
+                // 带上稳定键与分类：审核结果可能对应很久以前提交的条目，
+                // 点击通知要能直接定位到那张卡片，而不是停在列表最新一页
+                NotificationHelper.postAuditResult(context, item.displayName(), status,
+                        item.stableKey(), AuditInbox.queryTypeOf(item), item.createTime);
                 Log.i(TAG, "已推送审核结果通知：" + item.displayName()
                         + " / " + Contribution.statusName(item.status));
             }

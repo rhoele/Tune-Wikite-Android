@@ -83,7 +83,44 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- ============ 分区二：凭据说明 ============ -->
+            <!-- ============ 分区二：云小编 ============ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:layout_marginTop="@dimen/spacing_lg"
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:text="@string/cloud_editor_title"
+                android:textAppearance="@style/TextAppearance.ClassicWiki.FieldLabel" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.ClassicWiki.Card.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:id="@+id/group_cloud_editor"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="@dimen/spacing_lg"
+                    android:paddingEnd="@dimen/spacing_lg">
+
+                    <com.auramusic.wiki.classic.Md3ListItemView
+                        android:id="@+id/row_cloud_editor"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:md3IconTileColor="secondary"
+                        app:md3LeadingIcon="@drawable/ic_badge"
+                        app:md3Supporting="@string/cloud_editor_entry_desc"
+                        app:md3Title="@string/cloud_editor_title"
+                        app:md3TrailingMode="chevron" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ============ 分区三：凭据说明 ============ -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

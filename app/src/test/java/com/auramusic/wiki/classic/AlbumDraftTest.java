@@ -34,6 +34,8 @@ public class AlbumDraftTest {
         assertEquals("Sub;Alias", vo.getString("subtitle"));
         assertEquals("专辑", vo.getString("albumType"));
         assertEquals("Company", vo.getString("company"));
+        // 专辑介绍必须随 albumVo 提交，否则审核通过后简介为空白（v1.1.2 修复）
+        assertEquals("notes", vo.getString("notes"));
         assertEquals(1700000000000L, vo.getLong("publishTime"));
         assertEquals(2, vo.getJSONArray("artistIds").length());
         assertEquals(1, vo.getJSONArray("songTags").length());
@@ -72,6 +74,19 @@ public class AlbumDraftTest {
         // 没有封面时不应写入空 key
         assertTrue(!vo.has("albumRawNosKey"));
         assertTrue(!vo.has("album1v1NosKey"));
+    }
+
+    @Test
+    public void stripsTrackNumberPrefixFromFileNameTitle() {
+        assertEquals("Song", AlbumDraft.cleanSongName("01 - Song"));
+        assertEquals("Song", AlbumDraft.cleanSongName("1.Song"));
+        assertEquals("Song", AlbumDraft.cleanSongName("01_Song"));
+        assertEquals("Song", AlbumDraft.cleanSongName("[2] Song"));
+        assertEquals("Song", AlbumDraft.cleanSongName("(12) Song"));
+        // 没有前缀时保持原样；纯序号不应当被清空
+        assertEquals("Song 01", AlbumDraft.cleanSongName("Song 01"));
+        assertEquals("01", AlbumDraft.cleanSongName("01"));
+        assertEquals("", AlbumDraft.cleanSongName(null));
     }
 
     private AlbumDraft.Song song(String name, int disc, AlbumDraft.Artist artist) {

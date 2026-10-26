@@ -75,6 +75,12 @@ final class AlbumDraft {
         String name = "";
         String subtitle = "";
         String transName = "";
+        /**
+         * 用户是否手动改过歌名（含从声云交接带入的标题）。
+         *
+         * <p>未改过时才允许用音频元数据里的标题覆盖文件名兜底值。
+         */
+        boolean nameEdited;
         int disc = 1;
         int track;
         File file;
@@ -89,12 +95,27 @@ final class AlbumDraft {
         NosUploader.NosFile nosFile;
         int uploadPercent;
         String uploadError;
-        boolean uploading;
+        /**
+         * 上传阶段：0 空闲、1 排队等待线程、2 准备（算 MD5 / 申请凭证）、3 上传中。
+         *
+         * <p>批量导入时只有少数几条能立刻占用上传线程，其余会排队；
+         * 明确区分这三个阶段，用户才不会把「排队」误判成「卡住不动」。
+         */
+        int uploadStage = STAGE_IDLE;
+
+        boolean uploading() {
+            return uploadStage != STAGE_IDLE;
+        }
 
         boolean uploaded() {
             return nosFile != null;
         }
     }
+
+    static final int STAGE_IDLE = 0;
+    static final int STAGE_QUEUED = 1;
+    static final int STAGE_PREPARING = 2;
+    static final int STAGE_UPLOADING = 3;
 
     /** 专辑类型（与原 APK 的 albumVo 取值一致） */
     static final String[] ALBUM_TYPES = {"专辑", "EP", "Single", "精选集", "合集", "DEMO"};
@@ -223,5 +244,37 @@ final class AlbumDraft {
 
     private static String safe(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    /**
+     * 文件名开头的音轨号：{@code 01 -}、{@code 1.}、{@code 01_}、{@code [2]}、{@code (2)} 等；
+     * 兼容旧缓存文件名里的毫秒时间戳前缀（{@code 1792938469390-04. ...}）。
+     */
+    private static final java.util.regex.Pattern LEADING_TRACK =
+            java.util.regex.Pattern.compile(
+                    "^\\s*(?:\\[\\d{1,3}\\]|\\(\\d{1,3}\\)|\\d{10,14}\\s*[-_]|"
+                            + "\\d{1,3}\\s*[-._、·])\\s*");
+
+    /**
+     * 由文件名推导的歌名：去掉系统自动附加的音轨号前缀。
+     *
+     * <p>例如 {@code "01 - Song"}、{@code "1.Song"}、{@code "[2] Song"} 都会得到
+     * {@code "Song"}；若整段都是序号则原样保留，避免把歌名清空。
+     * 时间戳 + 音轨号可能同时存在，因此最多剥离两层。
+     */
+    static String cleanSongName(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String name = raw.trim();
+        String cleaned = name;
+        for (int i = 0; i < 2; i++) {
+            String next = LEADING_TRACK.matcher(cleaned).replaceFirst("").trim();
+            if (next.isEmpty() || next.equals(cleaned)) {
+                break;
+            }
+            cleaned = next;
+        }
+        return cleaned;
     }
 }

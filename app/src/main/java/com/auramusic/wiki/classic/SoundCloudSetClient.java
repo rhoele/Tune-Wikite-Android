@@ -19,8 +19,8 @@ import java.util.Map;
 /**
  * SoundCloud set（播放列表）解析器。
  *
- * <p>lucida 的接口只处理单曲，因此 set 需要先从页面里取出曲目清单，再逐首走
- * {@link LucidaClient#download}。SoundCloud 会在页面内嵌
+ * <p>SoundCloud 的下载接口只处理单曲，因此 set 需要先从页面里取出曲目清单，再逐首走
+ * {@link SoundCloudApiClient#download}。SoundCloud 会在页面内嵌
  * {@code window.__sc_hydration} JSON，其中 {@code hydratable=playlist} 的
  * {@code data.tracks} 就是<b>按播放列表顺序</b>排列的曲目。
  *
@@ -62,9 +62,8 @@ final class SoundCloudSetClient {
         /**
          * SoundCloud 只提供 30 秒试听片段（{@code policy=SNIP}）。
          *
-         * <p>这类曲目所有转码都是 {@code snipped}，lucida 会直接报
-         * {@code Cannot read properties of undefined (reading 'url')}；
-         * 必须在下载前识别出来，否则整张专辑只会得到一串无意义的 JS 报错。
+         * <p>这类曲目所有转码都是 {@code snipped}，必须先识别出来，
+         * 否则整张专辑会得到一串无意义的下载失败。
          */
         boolean previewOnly;
 
@@ -457,6 +456,30 @@ final class SoundCloudSetClient {
             return "";
         }
         return "https://soundcloud.com/" + userPermalink + "/" + permalink;
+    }
+
+    /** 从页面 {@code __sc_hydration} 里取 {@code apiClient.id}（即 api-v2 的 client_id）。 */
+    static String apiClientIdFromHtml(String html) {
+        String json = extractHydration(html);
+        if (json == null) {
+            return "";
+        }
+        try {
+            JSONArray root = new JSONArray(json);
+            for (int i = 0; i < root.length(); i++) {
+                JSONObject item = root.optJSONObject(i);
+                if (item == null || !"apiClient".equals(item.optString("hydratable"))) {
+                    continue;
+                }
+                JSONObject api = item.optJSONObject("data");
+                if (api != null) {
+                    return clean(api.optString("id"));
+                }
+            }
+        } catch (Exception ignored) {
+            // 页面结构变化时返回空串，由调用方走后备方案
+        }
+        return "";
     }
 
     /** 取出 {@code window.__sc_hydration = [...]} 里的数组文本。 */

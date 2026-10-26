@@ -3,6 +3,7 @@ package com.auramusic.wiki.classic;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
@@ -11,6 +12,7 @@ import android.os.Looper;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
@@ -69,10 +71,16 @@ public class SoundCloudDownloadView extends FrameLayout {
     private MaterialCheckBox handoffAudio;
     private MaterialCheckBox handoffSource;
     private MaterialButton retryButton;
+    private MaterialButton stopButton;
+    private LinearLayout failureList;
     private LinearProgressIndicator progress;
     private Runnable retryAction;
+    /** 用户请求停止当前下载：批量任务会在当前曲目结束后退出 */
+    private volatile boolean stopRequested;
+    /** 最近一次批量下载失败的曲目（供逐首重下） */
+    private final List<SoundCloudSetClient.Track> failedTracks = new ArrayList<>();
 
-    private LucidaClient.Track track;
+    private SoundCloudApiClient.Track track;
     /** set（播放列表）解析结果；非空时下载与传入都按曲序处理多首。 */
     private SoundCloudSetClient.Set set;
     /** 当前链接已解析出的下载结果（单曲 1 条，set 多条，顺序即曲序）。 */
@@ -135,6 +143,8 @@ public class SoundCloudDownloadView extends FrameLayout {
         handoffAudio = findViewById(R.id.cb_sc_handoff_audio);
         handoffSource = findViewById(R.id.cb_sc_handoff_source);
         retryButton = findViewById(R.id.btn_sc_retry);
+        stopButton = findViewById(R.id.btn_sc_stop);
+        failureList = findViewById(R.id.ll_sc_failures);
         progress = findViewById(R.id.pb_sc);
 
         String[] labels = new String[LucidaClient.FORMATS.length];
@@ -192,6 +202,10 @@ public class SoundCloudDownloadView extends FrameLayout {
             if (action != null) {
                 action.run();
             }
+        });
+        stopButton.setOnClickListener(v -> {
+            HapticsManager.tap(v);
+            requestStop();
         });
         updateHandoff();
     }
@@ -291,7 +305,7 @@ public class SoundCloudDownloadView extends FrameLayout {
                         throw new Exception(getContext().getString(R.string.sc_set_parse_failed));
                     }
                 }
-                LucidaClient.Track resolved = LucidaClient.metadata(url);
+                SoundCloudApiClient.Track resolved = SoundCloudApiClient.resolve(url);
                 main.post(() -> {
                     resetDownloadsIfUrlChanged(url);
                     set = null;
@@ -318,11 +332,13 @@ public class SoundCloudDownloadView extends FrameLayout {
         resolvedUrl = url;
         downloadedTracks.clear();
         coverFile = null;
+        failedTracks.clear();
+        renderFailures();
         audioButton.setText(R.string.sc_action_download_audio);
         updateHandoff();
     }
 
-    private void showTrack(LucidaClient.Track t) {
+    private void showTrack(SoundCloudApiClient.Track t) {
         audioButton.setText(R.string.sc_action_download_audio);
         titleView.setText(TextUtils.isEmpty(t.title) ? t.url : t.title);
         artistView.setVisibility(TextUtils.isEmpty(t.artist) ? View.GONE : View.VISIBLE);
@@ -420,6 +436,7 @@ public class SoundCloudDownloadView extends FrameLayout {
         final String fallbackTitle = track != null ? track.title
                 : (set == null ? "" : set.title);
         setBusy(true, getContext().getString(R.string.sc_progress_cover));
+        prepareNewTask();
         coverSourceView.setText(R.string.sc_progress_cover);
         executor.execute(() -> {
             try {
@@ -478,17 +495,21 @@ public class SoundCloudDownloadView extends FrameLayout {
             return;
         }
         final boolean convert = convertSwitch.isChecked();
-        final String downscale = convert ? "m4a-aac-320" : selectedFormat;
-        final String account = track == null ? "" : track.account;
-        final String title = track == null || TextUtils.isEmpty(track.title)
-                ? "soundcloud-audio" : track.title;
+        // 转换 WAV 需要可解码的容器，统一让 lucida 产出 m4a-aac-320
+        final String lucidaFormat = convert ? "m4a-aac-320" : selectedFormat;
+        final String title = titleOf(track == null ? null : track.title, url);
         final String artist = track == null ? "" : track.artist;
+        final AudioTagger.Tags tags = tagsFor(title, artist, track, null, 0);
         setBusy(true, getContext().getString(R.string.sc_progress_audio, 0));
+        prepareNewTask();
+        // 每次单曲下载重新询问「是否允许直连兜底」
+        SoundCloudDownloader.resetPrompt();
         executor.execute(() -> {
             try {
                 File dir = DownloadStore.dir(getContext(), DownloadStore.KIND_AUDIO);
-                File downloaded = LucidaClient.download(url, downscale, account, title, dir,
-                        new LucidaClient.Progress() {
+                File downloaded = SoundCloudDownloader.download(activity(), url, lucidaFormat, dir,
+                        title, tags,
+                        new SoundCloudDownloader.Progress() {
                             @Override
                             public void onStatus(String text) {
                                 main.post(() -> statusView.setText(text));
@@ -531,7 +552,7 @@ public class SoundCloudDownloadView extends FrameLayout {
         });
     }
 
-    /** 批量下载 set 里的全部曲目；单首失败不中断，最后汇报成功 / 失败数量。 */
+    /** 批量下载 set 里的全部曲目；单首失败不中断，最后汇总失败清单并支持逐首重下。 */
     private void downloadSetAudio() {
         final SoundCloudSetClient.Set current = set;
         if (current == null || current.tracks.isEmpty()) {
@@ -539,11 +560,11 @@ public class SoundCloudDownloadView extends FrameLayout {
             return;
         }
         final boolean convert = convertSwitch.isChecked();
-        final String downscale = convert ? "m4a-aac-320" : selectedFormat;
+        final String lucidaFormat = convert ? "m4a-aac-320" : selectedFormat;
         final int total = current.tracks.size();
         final int downloadable = Math.max(0, total - current.previewCount);
         if (downloadable == 0) {
-            // 全部是 SNIP：lucida 对这类曲目只会抛 JS 异常，提前给出可读的原因
+            // 全部是 SNIP：SoundCloud 只下发试听片段，提前给出可读的原因
             toast(getContext().getString(R.string.sc_status_set_all_preview, current.previewCount));
             return;
         }
@@ -551,36 +572,53 @@ public class SoundCloudDownloadView extends FrameLayout {
             toast(getContext().getString(R.string.sc_status_set_filtered,
                     total, current.unavailableCount, current.previewCount, downloadable));
         }
+        prepareNewTask();
+        // 每批 set 只询问一次「是否允许直连兜底」
+        SoundCloudDownloader.resetPrompt();
         setBusy(true, getContext().getString(R.string.sc_progress_set, 0, downloadable, 0));
         executor.execute(() -> {
             File dir = DownloadStore.dir(getContext(), DownloadStore.KIND_AUDIO);
             List<DownloadedTrack> out = new ArrayList<>();
-            int failed = 0;
+            List<SoundCloudSetClient.Track> failed = new ArrayList<>();
             int skippedPreview = 0;
             int processed = 0;
+            boolean stopped = false;
             for (int i = 0; i < total; i++) {
+                if (stopRequested) {
+                    stopped = true;
+                    break;
+                }
                 final SoundCloudSetClient.Track item = current.tracks.get(i);
                 if (item.previewOnly) {
-                    // 仅试听曲目没有完整音源，直接跳过，避免把 JS 异常当成下载失败
+                    // 仅试听曲目没有完整音源，直接跳过，避免计入下载失败
                     skippedPreview++;
                     continue;
                 }
                 final int index = ++processed;
+                final String trackTitle = titleOf(item.title, item.url);
+                // 实时显示当前正在下载的曲目名称
+                main.post(() -> statusView.setText(getContext().getString(
+                        R.string.sc_progress_set_current, trackTitle, index, downloadable)));
                 try {
                     // 前缀序号既保证文件顺序，也避免同名曲目互相覆盖
-                    String fileName = String.format(Locale.CHINA, "%02d - %s", index, item.title);
-                    File downloaded = LucidaClient.download(item.url, downscale, "", fileName, dir,
-                            new LucidaClient.Progress() {
+                    String fileName = String.format(Locale.CHINA, "%02d - %s", index, trackTitle);
+                    AudioTagger.Tags tags = tagsFor(trackTitle, item.artist, null, current, index);
+                    File downloaded = SoundCloudDownloader.download(activity(), item.url,
+                            lucidaFormat, dir, fileName, tags,
+                            new SoundCloudDownloader.Progress() {
                                 @Override
                                 public void onStatus(String text) {
                                     main.post(() -> statusView.setText(getContext().getString(
-                                            R.string.sc_progress_set_title, index, downloadable, text)));
+                                            R.string.sc_progress_set_current,
+                                            trackTitle, index, downloadable)));
                                 }
 
                                 @Override
                                 public void onPercent(int percent) {
-                                    main.post(() -> statusView.setText(getContext().getString(
-                                            R.string.sc_progress_set, index, downloadable, percent)));
+                                    main.post(() -> statusView.setText(
+                                            getContext().getString(R.string.sc_progress_set_current,
+                                                    trackTitle, index, downloadable)
+                                                    + " · " + percent + "%"));
                                 }
                             });
                     File result = downloaded;
@@ -592,22 +630,34 @@ public class SoundCloudDownloadView extends FrameLayout {
                     out.add(new DownloadedTrack(result, item.title, item.artist));
                     DownloadStore.exportAsync(getContext(), DownloadStore.KIND_AUDIO, result);
                 } catch (Exception e) {
-                    failed++;
+                    failed.add(item);
                 }
             }
-            final int failedCount = failed;
+            final int failedCount = failed.size();
             final int previewSkipped = skippedPreview;
+            final int processedCount = processed;
+            final boolean wasStopped = stopped;
             main.post(() -> {
                 downloadedTracks.clear();
                 downloadedTracks.addAll(out);
+                failedTracks.clear();
+                failedTracks.addAll(failed);
+                renderFailures();
                 hideRetry();
+                if (wasStopped) {
+                    setBusy(false, getContext().getString(R.string.sc_status_stopped_partial,
+                            out.size(), Math.max(0, downloadable - processedCount)));
+                    markHandoffAvailable(!out.isEmpty(), false);
+                    return;
+                }
                 if (out.isEmpty()) {
                     if (previewSkipped > 0) {
                         setBusy(false, getContext().getString(
                                 R.string.sc_status_set_all_preview, previewSkipped));
                     } else {
                         setBusy(false, getContext().getString(R.string.sc_audio_failed, ""));
-                        showRetry(this::downloadAudio);
+                        // 整批都失败：重试应该重下整批，而不是退化成单曲下载
+                        showRetry(this::downloadSetAudio);
                     }
                     return;
                 }
@@ -708,14 +758,208 @@ public class SoundCloudDownloadView extends FrameLayout {
         updateHandoff();
     }
 
+    /** 出错时同时给出「停止」「重试」两个选择（任务已中断，停止仅收起提示并复位状态）。 */
     private void showRetry(Runnable action) {
         retryAction = action;
         MotionManager.animateVisibility(getContext(), retryButton, true);
+        MotionManager.animateVisibility(getContext(), stopButton, true);
     }
 
     private void hideRetry() {
         retryAction = null;
         MotionManager.animateVisibility(getContext(), retryButton, false);
+        MotionManager.animateVisibility(getContext(), stopButton, false);
+    }
+
+    /** 用户点按「停止」：中断本次任务（批量会在当前曲目结束后退出）。 */
+    private void requestStop() {
+        stopRequested = true;
+        hideRetry();
+        statusView.setText(R.string.sc_status_stopped);
+    }
+
+    /** 点击「重试」/开始新一轮任务时复位停止标记与失败清单。 */
+    private void prepareNewTask() {
+        stopRequested = false;
+        failedTracks.clear();
+        renderFailures();
+    }
+
+    /** 渲染批量下载的失败清单：每行一首歌 + 单独重下按钮。 */
+    private void renderFailures() {
+        if (failureList == null) {
+            return;
+        }
+        failureList.removeAllViews();
+        if (failedTracks.isEmpty()) {
+            failureList.setVisibility(View.GONE);
+            return;
+        }
+        failureList.setVisibility(View.VISIBLE);
+        TextView title = new TextView(getContext());
+        title.setText(R.string.sc_failures_title);
+        title.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleSmall);
+        failureList.addView(title);
+        for (final SoundCloudSetClient.Track item : new ArrayList<>(failedTracks)) {
+            LinearLayout row = new LinearLayout(getContext());
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(0, dp(4), 0, dp(4));
+
+            TextView name = new TextView(getContext());
+            name.setText(TextUtils.isEmpty(item.title) ? item.url : item.title);
+            name.setTextAppearance(R.style.TextAppearance_ClassicWiki_Supporting);
+            name.setMaxLines(2);
+            name.setEllipsize(TextUtils.TruncateAt.END);
+            row.addView(name, new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+            MaterialButton retry = new MaterialButton(getContext());
+            retry.setText(R.string.sc_failure_retry);
+            retry.setTextColor(com.google.android.material.color.MaterialColors.getColor(
+                    retry, androidx.appcompat.R.attr.colorPrimary));
+            retry.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+            retry.setMinHeight(dp(48));
+            retry.setOnClickListener(v -> {
+                HapticsManager.tap(v);
+                retryFailedTrack(item);
+            });
+            row.addView(retry);
+            failureList.addView(row);
+        }
+    }
+
+    /** 单首重下：成功后从失败清单移除并加入可交接列表。 */
+    private void retryFailedTrack(final SoundCloudSetClient.Track item) {
+        if (busy || item == null) {
+            return;
+        }
+        final boolean convert = convertSwitch.isChecked();
+        final String lucidaFormat = convert ? "m4a-aac-320" : selectedFormat;
+        final String title = titleOf(item.title, item.url);
+        // 重下时仍按该曲目在合集里的位置写音轨号
+        final int trackNo = set == null ? 0 : set.tracks.indexOf(item) + 1;
+        setBusy(true, getContext().getString(R.string.sc_progress_set_current, title, 1, 1));
+        executor.execute(() -> {
+            try {
+                File dir = DownloadStore.dir(getContext(), DownloadStore.KIND_AUDIO);
+                File downloaded = SoundCloudDownloader.download(activity(), item.url, lucidaFormat,
+                        dir, title, tagsFor(title, item.artist, null, set, trackNo),
+                        new SoundCloudDownloader.Progress() {
+                            @Override
+                            public void onStatus(String text) {
+                                main.post(() -> statusView.setText(getContext().getString(
+                                        R.string.sc_progress_set_current, title, 1, 1)));
+                            }
+
+                            @Override
+                            public void onPercent(int percent) {
+                                main.post(() -> statusView.setText(getContext().getString(
+                                        R.string.sc_progress_set_current, title, 1, 1)
+                                        + " · " + percent + "%"));
+                            }
+                        });
+                File result = downloaded;
+                if (convert) {
+                    File wav = new File(downloaded.getParentFile(),
+                            stripExt(downloaded.getName()) + "-32bit.wav");
+                    result = PcmWavConverter.toWav32(downloaded, wav, null);
+                }
+                final File finalFile = result;
+                DownloadStore.exportAsync(getContext(), DownloadStore.KIND_AUDIO, finalFile);
+                main.post(() -> {
+                    downloadedTracks.add(new DownloadedTrack(finalFile, item.title, item.artist));
+                    failedTracks.remove(item);
+                    renderFailures();
+                    hideRetry();
+                    setBusy(false, getContext().getString(
+                            R.string.sc_status_audio_ok, finalFile.getName()));
+                    markHandoffAvailable(true, false);
+                });
+            } catch (Exception e) {
+                main.post(() -> {
+                    setBusy(false, getContext().getString(R.string.sc_audio_failed,
+                            messageOf(e)));
+                    showRetry(this::downloadAudio);
+                });
+            }
+        });
+    }
+
+    /** 组装落盘后要写入的标签：set 补专辑名 / 曲序，单曲补风格与年份。 */
+    private static AudioTagger.Tags tagsFor(String title, String artist,
+                                            SoundCloudApiClient.Track track,
+                                            SoundCloudSetClient.Set set, int trackNo) {
+        AudioTagger.Tags tags = new AudioTagger.Tags();
+        tags.title = title;
+        tags.artist = artist;
+        if (set != null) {
+            tags.album = set.title;
+            tags.albumArtist = set.artist;
+            tags.coverUrl = set.artworkUrl;
+            tags.trackNo = trackNo;
+        } else if (track != null) {
+            tags.genre = track.genre;
+            tags.year = yearOf(track.releaseDate);
+            tags.coverUrl = track.coverUrl;
+        }
+        return tags;
+    }
+
+    private static String yearOf(String date) {
+        return date != null && date.length() >= 4 && Character.isDigit(date.charAt(0))
+                ? date.substring(0, 4) : "";
+    }
+
+    /**
+     * 下载文件名用的标题。
+     *
+     * <p>元数据没解析成功时（常见于没先点「解析」、或解析被风控拦下），
+     * 过去统一落到 {@code soundcloud-audio}，多个文件会互相覆盖也看不出是哪首；
+     * 这里退到链接末尾的 slug（{@code …/purple-of-midnight} → {@code purple of midnight}）。
+     */
+    private static String titleOf(String title, String url) {
+        if (!TextUtils.isEmpty(title)) {
+            return title.trim();
+        }
+        String path = url == null ? "" : url.trim();
+        int cut = path.indexOf('?');
+        if (cut >= 0) {
+            path = path.substring(0, cut);
+        }
+        cut = path.indexOf('#');
+        if (cut >= 0) {
+            path = path.substring(0, cut);
+        }
+        while (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        int slash = path.lastIndexOf('/');
+        String slug = slash >= 0 ? path.substring(slash + 1) : path;
+        try {
+            slug = java.net.URLDecoder.decode(slug, "UTF-8");
+        } catch (Exception ignored) {
+            // 非法转义时按原文使用
+        }
+        slug = slug.replace('-', ' ').replace('_', ' ').trim();
+        return slug.isEmpty() ? "soundcloud-audio" : slug;
+    }
+
+    /** 取宿主 Activity：过 Cloudflare 与兜底询问都需要界面上下文 */
+    @Nullable
+    private Activity activity() {
+        Context context = getContext();
+        while (context instanceof android.content.ContextWrapper) {
+            if (context instanceof Activity) {
+                return (Activity) context;
+            }
+            context = ((android.content.ContextWrapper) context).getBaseContext();
+        }
+        return null;
+    }
+
+    private int dp(int value) {
+        return Math.round(getResources().getDisplayMetrics().density * value);
     }
 
     private String formatDuration(long ms) {
@@ -730,11 +974,6 @@ public class SoundCloudDownloadView extends FrameLayout {
 
     private String messageOf(Exception e) {
         String message = e.getMessage();
-        if (message != null && message.contains("Cannot read properties of undefined")) {
-            // lucida 对「只有试听片段」的 SoundCloud 曲目会直接抛 JS 异常，
-            // 原文对用户毫无意义，这里统一换成可操作的原因说明
-            return getContext().getString(R.string.sc_preview_only_error);
-        }
         return TextUtils.isEmpty(message) ? e.getClass().getSimpleName() : message;
     }
 

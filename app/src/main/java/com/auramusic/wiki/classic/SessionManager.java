@@ -26,6 +26,8 @@ public final class SessionManager {
     /** 登录方式 */
     public static final String TYPE_QR = "qr";
     public static final String TYPE_COOKIE = "cookie";
+    /** 网易云官方网页登录（手机号 + 验证码 / 密码） */
+    public static final String TYPE_WEB = "web";
 
     /** 网易云鉴权核心 Cookie 名，缺失即视为无效凭据 */
     public static final String CORE_COOKIE = "MUSIC_U";

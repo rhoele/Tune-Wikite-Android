@@ -345,6 +345,15 @@
                 android:textAppearance="@style/TextAppearance.ClassicWiki.Supporting" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_sc_stop"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/touch_target_min"
+                android:text="@string/sc_action_stop"
+                android:visibility="gone" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_sc_retry"
                 style="@style/Widget.Material3.Button.TextButton"
                 android:layout_width="wrap_content"
@@ -354,6 +363,15 @@
                 android:visibility="gone" />
 
         </LinearLayout>
+
+        <!-- 批量下载失败清单：逐首展示名称并支持单独重下 -->
+        <LinearLayout
+            android:id="@+id/ll_sc_failures"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_sm"
+            android:orientation="vertical"
+            android:visibility="gone" />
 
         <!-- 传入专辑上传 -->
         <com.google.android.material.card.MaterialCardView

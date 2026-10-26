@@ -39,6 +39,10 @@ public class AccountSettingsActivity extends BaseActivity {
             HapticsManager.tap(v);
             startActivity(new Intent(this, LoginActivity.class));
         });
+        findViewById(R.id.row_cloud_editor).setOnClickListener(v -> {
+            HapticsManager.tap(v);
+            startActivity(new Intent(this, CloudEditorActivity.class));
+        });
         rowLogout.setOnClickListener(v -> {
             HapticsManager.tap(v);
             confirmLogout();
@@ -46,6 +50,7 @@ public class AccountSettingsActivity extends BaseActivity {
 
         // 按「设置项样式」偏好重排：独立卡片模式下每行单独成卡，分组卡透明化
         SettingsRows.applyRowStyle(findViewById(R.id.group_account));
+        SettingsRows.applyRowStyle(findViewById(R.id.group_cloud_editor));
         wasLoggedIn = SessionManager.isLoggedIn(this);
     }
 

@@ -8,6 +8,10 @@ buildscript {
         // FCM：读取 app/google-services.json 并把 Firebase 配置注入资源
         // （仅在配置文件存在时才会被 app 模块应用，见 app/build.gradle）
         classpath 'com.google.gms:google-services:4.4.2'
+        // Kotlin + Compose：新页面（云小编中心）以 Compose 实现，老页面继续用 XML，
+        // 两套 UI 共享同一份 MD3 主题与字体令牌。Kotlin 2.0 起 Compose 编译器随 Kotlin 版本走。
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.21'
+        classpath 'org.jetbrains.kotlin:compose-compiler-gradle-plugin:2.0.21'
     }
 }
 

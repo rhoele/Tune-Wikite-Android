@@ -102,6 +102,15 @@ public class MainActivity extends BaseActivity {
     public static final String EXTRA_FOCUS_TIME = "extra_focus_time";
     /** 从「未通过原因」长按跳转：项目类型（{@code RejectArchive.CAT_*}），决定扫描哪个贡献分类 */
     public static final String EXTRA_FOCUS_CATEGORY = "extra_focus_category";
+    /**
+     * 审核结果跳转：贡献条目的稳定键 + 所属分类 + 提交时间。
+     *
+     * <p>审核结果（系统通知 / 应用内消息）天然可能是很久以前提交的条目，
+     * 只切到列表页会停在最新一页、看不到目标卡片；带上稳定键即可精确定位并滚过去。
+     */
+    public static final String EXTRA_FOCUS_KEY = "extra_focus_key";
+    public static final String EXTRA_FOCUS_TYPE = "extra_focus_type";
+    public static final String EXTRA_FOCUS_SUBMIT = "extra_focus_submit";
     public static final int DEST_WIKI = 0;
     public static final int DEST_CONTRIBUTIONS = 1;
     /** 声云资源下载（新） */
@@ -511,6 +520,17 @@ public class MainActivity extends BaseActivity {
             return;
         }
         String album = intent.getStringExtra(EXTRA_FOCUS_ALBUM);
+        String focusKey = intent.getStringExtra(EXTRA_FOCUS_KEY);
+        if (focusKey != null && !focusKey.trim().isEmpty()) {
+            int type = intent.getIntExtra(EXTRA_FOCUS_TYPE, 0);
+            long submit = intent.getLongExtra(EXTRA_FOCUS_SUBMIT, 0L);
+            String name = album == null ? "" : album.trim();
+            intent.removeExtra(EXTRA_FOCUS_KEY);
+            intent.removeExtra(EXTRA_FOCUS_TYPE);
+            intent.removeExtra(EXTRA_FOCUS_SUBMIT);
+            focusEntry(focusKey.trim(), name, type, submit);
+            return;
+        }
         if (album == null || album.trim().isEmpty()) {
             return;
         }
@@ -645,6 +665,93 @@ public class MainActivity extends BaseActivity {
                 applyFocus(result.type, result.index);
             });
         }, "contrib-focus").start();
+    }
+
+    /**
+     * 按稳定键定位并跳转到某条贡献卡片。
+     *
+     * <p>审核结果可能来自很久以前提交的条目，而列表按提交时间倒序：只切到贡献页会停在
+     * 最新一页，目标卡片根本不在可视范围。这里先按稳定键找到「分类 + 全局下标」，
+     * 再走既有的加载该页 / 滚动 / 强调链路，历史条目也能直接跳到眼前。
+     *
+     * @param type  条目所属查询类型，0 表示未知（逐类扫描）
+     */
+    private void focusEntry(String key, String name, int type, long submitTime) {
+        if (!SessionManager.isLoggedIn(this)) {
+            Feedback.show(findViewById(R.id.bottom_overlay), R.string.contrib_error_not_logged_in);
+            return;
+        }
+        pendingFocusName = name;
+        pendingFocusTime = submitTime;
+        if (destination != DEST_CONTRIBUTIONS) {
+            selectBottomNavItem(DEST_CONTRIBUTIONS);
+            if (destination != DEST_CONTRIBUTIONS) {
+                switchDestination(DEST_CONTRIBUTIONS);
+            }
+        }
+        final int focusGen = ++focusGeneration;
+        Feedback.show(findViewById(R.id.bottom_overlay), R.string.contrib_focus_locating);
+        final int[] types = type > 0 ? new int[]{type} : focusTypesFor(RejectArchive.CAT_OTHER);
+        new Thread(() -> {
+            final FocusTarget result = locateByKey(key, submitTime, types, focusGen);
+            runOnUiThread(() -> {
+                if (focusGen != focusGeneration || isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (result == null) {
+                    pendingFocusName = null;
+                    pendingFocusTime = 0L;
+                    Feedback.show(findViewById(R.id.bottom_overlay),
+                            getString(R.string.contrib_focus_not_found, name));
+                    return;
+                }
+                pendingFocusKey = result.key;
+                applyFocus(result.type, result.index);
+            });
+        }, "contrib-focus-entry").start();
+    }
+
+    /**
+     * 按稳定键逐页查找目标条目。
+     *
+     * <p>列表按提交时间倒序，所以「整页都比目标提交时间更早」时该分类里不可能再有它，
+     * 可以提前结束；已知具体分类时只翻一个分类，历史条目通常一两页就能命中。
+     */
+    @Nullable
+    private FocusTarget locateByKey(String key, long submitTime, int[] types, int gen) {
+        for (int type : types) {
+            int offset = 0;
+            for (int page = 0; page < FOCUS_SCAN_MAX_PAGES; page++) {
+                if (gen != focusGeneration) {
+                    return null;
+                }
+                NetEaseWikiClient.Page result;
+                try {
+                    result = NetEaseWikiClient.fetchPage(this, type, null, offset,
+                            FOCUS_SCAN_PAGE_SIZE, null);
+                } catch (WikiException e) {
+                    Log.w(TAG, "按键定位扫描失败 type=" + type + "：" + e.getMessage());
+                    break;
+                }
+                List<Contribution> items = result.items;
+                for (int i = 0; i < items.size(); i++) {
+                    Contribution item = items.get(i);
+                    if (item != null && key.equals(item.stableKey())) {
+                        return new FocusTarget(type, offset + i, key);
+                    }
+                }
+                if (items.size() < FOCUS_SCAN_PAGE_SIZE) {
+                    break;
+                }
+                Contribution last = items.get(items.size() - 1);
+                if (submitTime > 0L && last != null && last.createTime > 0L
+                        && last.createTime < submitTime) {
+                    break;
+                }
+                offset += FOCUS_SCAN_PAGE_SIZE;
+            }
+        }
+        return null;
     }
 
     /** 项目类型 → 需要扫描的贡献分类；不确定时退回全部类型。 */
@@ -1263,8 +1370,14 @@ public class MainActivity extends BaseActivity {
                     AuditInbox.Entry entry = entries.get(which);
                     AuditInbox.markRead(this, entry.key);
                     refreshUnreadState();
-                    selectBottomNavItem(DEST_CONTRIBUTIONS);
-                    switchDestination(DEST_CONTRIBUTIONS);
+                    if (entry.key.startsWith("push:")) {
+                        // 推送写入的占位没有稳定键，只能回到列表页
+                        selectBottomNavItem(DEST_CONTRIBUTIONS);
+                        switchDestination(DEST_CONTRIBUTIONS);
+                        return;
+                    }
+                    // 按稳定键定位：条目可能是很久以前提交的，列表顶部根本看不到
+                    focusEntry(entry.key, entry.name, entry.type, entry.time);
                 });
     }
 

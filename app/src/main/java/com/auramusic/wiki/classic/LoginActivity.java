@@ -3,6 +3,7 @@ package com.auramusic.wiki.classic;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Handler;
@@ -28,8 +29,11 @@ import com.google.android.material.textfield.TextInputLayout;
  *   803 时从响应头 Set-Cookie 与响应体 cookie 字段双重提取会话。
  * 通道二 · Cookie 登录：
  *   先做本地格式校验（必须含 MUSIC_U 且取值合理），再请求账号资料接口验证会话有效性。
+ * 通道三 · 手机号（网页登录）：
+ *   在网易云官方登录页（{@link NeteaseWebLoginActivity}）里完成手机号 + 验证码 / 密码登录，
+ *   应用只从 Cookie 取回 {@code MUSIC_U}，不接触密码；直接调短信 / 密码接口会被风控判定为安全风险。
  *
- * 两条通道最终都写入 {@link SessionManager}，与「我的贡献」「后台审核提醒」共享同一份凭据。
+ * 三条通道最终都写入 {@link SessionManager}，与「我的贡献」「后台审核提醒」共享同一份凭据。
  * 全流程带代际校验与在途取消，页面销毁即停止轮询，避免回调打到已销毁的界面。
  */
 public class LoginActivity extends BaseActivity {
@@ -37,6 +41,10 @@ public class LoginActivity extends BaseActivity {
     public static final String EXTRA_START_TAB = "extra_start_tab";
     public static final int TAB_QR = 0;
     public static final int TAB_COOKIE = 1;
+    public static final int TAB_PHONE = 2;
+
+    /** 网页登录返回的请求码 */
+    private static final int REQ_WEB_LOGIN = 1001;
 
     /** 扫码状态轮询间隔：与网易云 Web 端一致的 2 秒 */
     private static final long QR_POLL_INTERVAL_MS = 2000L;
@@ -46,6 +54,7 @@ public class LoginActivity extends BaseActivity {
     private TabLayout tabs;
     private View pageQr;
     private View pageCookie;
+    private View pagePhone;
     private ImageView ivQr;
     private TextView tvQrStatus;
     private MaterialButton btnQrRefresh;
@@ -71,6 +80,7 @@ public class LoginActivity extends BaseActivity {
         tabs = findViewById(R.id.login_tabs);
         pageQr = findViewById(R.id.page_qr);
         pageCookie = findViewById(R.id.page_cookie);
+        pagePhone = findViewById(R.id.page_phone);
         ivQr = findViewById(R.id.iv_qr);
         tvQrStatus = findViewById(R.id.tv_qr_status);
         btnQrRefresh = findViewById(R.id.btn_qr_refresh);
@@ -87,6 +97,7 @@ public class LoginActivity extends BaseActivity {
 
         tabs.addTab(tabs.newTab().setText(R.string.login_tab_qr));
         tabs.addTab(tabs.newTab().setText(R.string.login_tab_cookie));
+        tabs.addTab(tabs.newTab().setText(R.string.login_tab_phone));
         int startTab = getIntent() == null
                 ? TAB_QR : getIntent().getIntExtra(EXTRA_START_TAB, TAB_QR);
         selectTab(startTab);
@@ -95,10 +106,11 @@ public class LoginActivity extends BaseActivity {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
                 HapticsManager.toggle(tabs);
-                boolean qr = tab.getPosition() == TAB_QR;
-                pageQr.setVisibility(qr ? View.VISIBLE : View.GONE);
-                pageCookie.setVisibility(qr ? View.GONE : View.VISIBLE);
-                if (qr) {
+                int position = tab.getPosition();
+                pageQr.setVisibility(position == TAB_QR ? View.VISIBLE : View.GONE);
+                pageCookie.setVisibility(position == TAB_COOKIE ? View.VISIBLE : View.GONE);
+                pagePhone.setVisibility(position == TAB_PHONE ? View.VISIBLE : View.GONE);
+                if (position == TAB_QR) {
                     startQrFlow();
                 } else {
                     stopPolling();
@@ -137,6 +149,11 @@ public class LoginActivity extends BaseActivity {
             submitCookie();
         });
 
+        findViewById(R.id.btn_web_login).setOnClickListener(v -> {
+            HapticsManager.tap(v);
+            startActivityForResult(new Intent(this, NeteaseWebLoginActivity.class), REQ_WEB_LOGIN);
+        });
+
         if (startTab == TAB_QR) {
             startQrFlow();
         }
@@ -168,7 +185,7 @@ public class LoginActivity extends BaseActivity {
     }
 
     private void selectTab(int tab) {
-        TabLayout.Tab t = tabs.getTabAt(tab < 0 || tab > 1 ? TAB_QR : tab);
+        TabLayout.Tab t = tabs.getTabAt(tab < 0 || tab > TAB_PHONE ? TAB_QR : tab);
         if (t != null) {
             t.select();
         }
@@ -432,6 +449,65 @@ public class LoginActivity extends BaseActivity {
     }
 
     // ------------------------------------------------------------------
+    // 通道三：手机号（网易云官方网页登录）
+    // ------------------------------------------------------------------
+
+    /**
+     * 网页登录完成后回传 Cookie。
+     *
+     * <p>网页登录由 {@link NeteaseWebLoginActivity} 完成，这里只校验并保存会话，
+     * 与「粘贴 Cookie」走同一条验证 / 落库链路。
+     */
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQ_WEB_LOGIN || resultCode != RESULT_OK || data == null) {
+            return;
+        }
+        String raw = data.getStringExtra(NeteaseWebLoginActivity.EXTRA_COOKIE);
+        if (TextUtils.isEmpty(raw)) {
+            Feedback.show(this, R.string.login_err_invalid);
+            return;
+        }
+        applyWebCookie(raw);
+    }
+
+    /** 网页登录拿到的 Cookie：本地校验 + 资料接口确认后落库。 */
+    private void applyWebCookie(String rawCookie) {
+        String cookie = SessionManager.sanitizeCookie(rawCookie);
+        if (!SessionManager.looksValid(cookie)) {
+            Feedback.show(this, R.string.login_err_invalid);
+            return;
+        }
+        showBusy(R.string.login_verifying);
+        cancelInflight();
+        final int gen = ++generation;
+        final Http.CancelToken token = new Http.CancelToken();
+        inflight = token;
+
+        new Thread(() -> {
+            NetEaseAuthClient.Profile profile = null;
+            try {
+                profile = NetEaseAuthClient.fetchProfile(cookie, token);
+            } catch (WikiException e) {
+                if (e.getKind() == WikiException.Kind.CANCELLED) {
+                    return;
+                }
+                // 网页登录已下发 MUSIC_U，资料接口偶发失败不阻断登录
+            }
+            final NetEaseAuthClient.Profile result = profile;
+            runOnUiThread(() -> {
+                if (gen != generation || isFinishing() || isDestroyed()) {
+                    return;
+                }
+                inflight = null;
+                SessionManager.save(LoginActivity.this, cookie, result, SessionManager.TYPE_WEB);
+                finishWithSuccess();
+            });
+        }, "wiki-web-login").start();
+    }
+
+    // ------------------------------------------------------------------
     // 通用
     // ------------------------------------------------------------------
 
@@ -486,6 +562,10 @@ public class LoginActivity extends BaseActivity {
                         ? getString(R.string.login_err_invalid) : e.getMessage();
             case HTTP:
                 return getString(R.string.wiki_http_error, e.getHttpCode());
+            case EMPTY:
+                // 验证码发送 / 手机号登录的业务失败以服务端文案为准
+                return TextUtils.isEmpty(e.getMessage())
+                        ? getString(R.string.login_err_unknown) : e.getMessage();
             default:
                 return getString(R.string.login_err_unknown);
         }

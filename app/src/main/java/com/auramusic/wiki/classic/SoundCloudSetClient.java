@@ -115,14 +115,37 @@ final class SoundCloudSetClient {
         }
     }
 
-    /** set 链接（或可能是短链）才需要先尝试按播放列表解析。 */
+    /**
+     * set 链接（或可能是短链）才需要先尝试按播放列表解析。
+     *
+     * <p>只按路径判断：播放列表内单曲的分享链接形如
+     * {@code /user/track?in=user/sets/xxx}，查询串里的 {@code /sets/} 不能作为类型依据，
+     * 否则单曲会被当成 set 解析并失败。
+     */
     static boolean looksLikeSet(String url) {
         if (url == null) {
             return false;
         }
         String lower = url.toLowerCase(Locale.ROOT);
-        return lower.contains("/sets/") || lower.contains("/playlists/")
-                || lower.contains("on.soundcloud.com");
+        if (lower.contains("on.soundcloud.com")) {
+            return true;
+        }
+        String path = pathPart(lower);
+        return path.contains("/sets/") || path.contains("/playlists/");
+    }
+
+    /** 去掉查询串与锚点后的 URL 路径部分。 */
+    private static String pathPart(String url) {
+        int cut = url.length();
+        int query = url.indexOf('?');
+        if (query >= 0) {
+            cut = query;
+        }
+        int fragment = url.indexOf('#');
+        if (fragment >= 0 && fragment < cut) {
+            cut = fragment;
+        }
+        return url.substring(0, cut);
     }
 
     /**

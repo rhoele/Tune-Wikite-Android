@@ -135,7 +135,8 @@ public class AlbumUploadView extends FrameLayout {
     private ChipGroup languageChips;
     private ChipGroup tagChips;
     private TextInputEditText source;
-    private TextInputEditText notes;
+    /** 专辑介绍：提交时必须写进 albumVo.production（notes 是「补充备注」，审核端才可见） */
+    private TextInputEditText intro;
     private MaterialCheckBox agreement;
     private RecyclerView songList;
     private TextView songsEmpty;
@@ -264,7 +265,7 @@ public class AlbumUploadView extends FrameLayout {
         languageChips = findViewById(R.id.chip_au_language);
         tagChips = findViewById(R.id.chip_au_tags);
         source = findViewById(R.id.et_au_source);
-        notes = findViewById(R.id.et_au_notes);
+        intro = findViewById(R.id.et_au_notes);
         agreement = findViewById(R.id.cb_au_agree);
         songList = findViewById(R.id.rv_au_songs);
         songsEmpty = findViewById(R.id.tv_au_songs_empty);
@@ -278,7 +279,7 @@ public class AlbumUploadView extends FrameLayout {
 
         bindFieldErrorClear();
         // 多行字段内容超出框体时，允许在框内上下滑动查看
-        InputScroll.enable(albumName, albumSubtitle, albumTrans, company, source, notes);
+        InputScroll.enable(albumName, albumSubtitle, albumTrans, company, source, intro);
         installFocusClearing();
 
         artistAdapter = new ArtistResultAdapter(this::onTargetArtistPicked);
@@ -1788,7 +1789,7 @@ public class AlbumUploadView extends FrameLayout {
         final String languageValue = TextUtils.join(",", selectedLanguages);
         final List<AlbumDraft.Tag> tagSnapshot = new ArrayList<>(selectedTags);
         final String sourceValue = text(source);
-        final String notesValue = text(notes);
+        final String introValue = text(intro);
         final long publishTimeValue = publishTime == null ? 0 : publishTime;
         final List<AlbumDraft.Song> songSnapshot = new ArrayList<>(songs);
         // 提交期间用户仍可能改动表单，先把本次提交涉及的艺人快照下来，
@@ -1803,11 +1804,13 @@ public class AlbumUploadView extends FrameLayout {
 
         executor.execute(() -> {
             try {
+                // 网页百科把「专辑介绍」提交为 production；notes 是「补充备注」，只在审核端可见。
+                // 此前把介绍写进 notes，审核通过后专辑简介始终为空（album description 为空）。
                 JSONObject vo = AlbumDraft.toAlbumVo(albumNameValue,
                         subtitleValue, selectedAlbumType, transValue,
                         submittedAlbumArtists, companyValue, publishTimeValue,
-                        languageValue, tagSnapshot, "", songSnapshot,
-                        sourceValue, notesValue, coverRawNos, coverSquareNos);
+                        languageValue, tagSnapshot, introValue, songSnapshot,
+                        sourceValue, "", coverRawNos, coverSquareNos);
                 NetEaseWikiClient.submitAlbum(getContext(), artistId, vo, null);
                 main.post(() -> {
                     submitting = false;
@@ -1885,7 +1888,7 @@ public class AlbumUploadView extends FrameLayout {
         albumTrans.setText("");
         company.setText("");
         source.setText("");
-        notes.setText("");
+        intro.setText("");
         selectedAlbumType = AlbumDraft.ALBUM_TYPES[0];
         albumType.setText(selectedAlbumType, false);
         publishTime = null;

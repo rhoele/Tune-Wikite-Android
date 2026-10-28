@@ -162,7 +162,12 @@ final class AlbumDraft {
         selected.add(language);
     }
 
-    /** 组装提交用的 albumVo。 */
+    /**
+     * 组装提交用的 albumVo。
+     *
+     * <p>字段名对齐网页百科「添加专辑」表单：{@code production} 是专辑介绍（审核通过后
+     * 成为专辑简介），{@code notes} 是「补充备注」，只在审核端可见。
+     */
     static JSONObject toAlbumVo(String albumName, String subtitle, String albumType,
                                 String transName, List<Artist> albumArtists, String company,
                                 long publishTime, String language, List<Tag> tags,

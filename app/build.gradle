@@ -38,8 +38,8 @@ android {
         applicationId "com.auramusic.wiki.classic"
         minSdk 26
         targetSdk 34
-        versionCode 10200
-        versionName "1.2.0"
+        versionCode 10201
+        versionName "1.2.1"
 
         // 自有推送服务的基地址。正式包只接受构建时显式注入的 HTTPS 地址，
         // 缺省为空表示不上报令牌（见下方 buildTypes）。

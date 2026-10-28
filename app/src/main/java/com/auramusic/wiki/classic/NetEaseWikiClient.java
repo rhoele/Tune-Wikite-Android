@@ -710,9 +710,9 @@ public final class NetEaseWikiClient {
     /**
      * 提交补充专辑。
      *
-     * <p><b>通道必须与参考实现一致：App 通道（EAPI）优先。</b>此前固定走网页通道时，
-     * 服务端在 WEAPI 链路上会丢弃 albumVo 里的 {@code notes}（专辑介绍），表现为专辑审核
-     * 通过后简介始终为空白；参考 APK 的同名请求走 EAPI，字段映射完整。
+     * <p><b>通道必须与参考实现一致：App 通道（EAPI）优先。</b>字段名以网页百科
+     * {@code /st/wiki} 的「添加专辑」表单为准：专辑介绍是 {@code albumVo.production}，
+     * 而 {@code notes} 是「补充备注」，只在审核端可见，不会出现在专辑简介里。
      *
      * <p>为避免重复提交，只有「确定未受理」时才降级为 WEAPI：
      * <ul>
@@ -732,9 +732,9 @@ public final class NetEaseWikiClient {
             // 同上
         }
         String cookie = WikiPrefs.cookie(context);
-        // 专辑介绍只存在于 albumVo 里；App 通道（EAPI）会完整保留，网页通道会丢弃，
-        // 因此这里把「有无简介 + 实际通道」打进日志，便于审核后核对。
-        int notesLength = albumVo == null ? 0 : albumVo.optString("notes", "").trim().length();
+        // 专辑介绍在网页百科里是 albumVo.production（notes 只是「补充备注」，仅审核端可见），
+        // 这里把「有无介绍 + 实际通道」打进日志，便于审核后核对。
+        int introLength = albumVo == null ? 0 : albumVo.optString("production", "").trim().length();
 
         JSONObject root = null;
         WikiException eapiError = null;
@@ -755,11 +755,11 @@ public final class NetEaseWikiClient {
         if (root != null) {
             int code = root.optInt("code", 200);
             if (code == 0 || code == 200) {
-                Log.d(TAG, "App 通道提交专辑成功，简介 " + notesLength + " 字");
+                Log.d(TAG, "App 通道提交专辑成功，简介 " + introLength + " 字");
                 return root;
             }
         }
-        Log.w(TAG, "App 通道提交专辑失败，改用网页通道重试（简介 " + notesLength + " 字）"
+        Log.w(TAG, "App 通道提交专辑失败，改用网页通道重试（简介 " + introLength + " 字）"
                 + (eapiError == null ? "" : "：" + eapiError.getMessage()));
 
         JSONObject fallback = NetEaseWeApi.post(API_SUBMIT_ALBUM, webPayload(payload),

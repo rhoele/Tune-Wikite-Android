@@ -553,8 +553,19 @@ final class SoundCloudApiClient {
         if (url == null) {
             return "";
         }
-        return url.trim().replaceFirst("(?i)^https?://m\\.soundcloud\\.com/",
+        String value = url.trim().replaceFirst("(?i)^https?://m\\.soundcloud\\.com/",
                 "https://soundcloud.com/");
+        // 分享链接常带 ?in=user/sets/xxx 这类跟踪参数，解析前去掉，避免把单曲误判成播放列表
+        int cut = value.length();
+        int query = value.indexOf('?');
+        if (query >= 0) {
+            cut = query;
+        }
+        int fragment = value.indexOf('#');
+        if (fragment >= 0 && fragment < cut) {
+            cut = fragment;
+        }
+        return value.substring(0, cut);
     }
 
     private static String artwork(String url) {

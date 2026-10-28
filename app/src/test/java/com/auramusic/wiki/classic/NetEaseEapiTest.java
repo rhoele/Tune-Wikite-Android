@@ -16,7 +16,7 @@ import javax.crypto.spec.SecretKeySpec;
  *
  * <p>{@code params} 必须是 AES/ECB 密文的<b>大写十六进制</b>：一旦退回 Base64，
  * 服务端会把请求判为非法，所有 App 通道调用都会静默降级到 WEAPI——
- * 而网页通道会丢弃 {@code albumVo.notes}，表现为「提交成功但审核后简介为空」。
+ * 而网页通道的字段映射不完整（例如专辑介绍），表现为「提交成功但审核后简介为空」。
  */
 public class NetEaseEapiTest {
 
@@ -27,7 +27,7 @@ public class NetEaseEapiTest {
     public void encryptsParamsAsUpperCaseHexOfExpectedValue() throws Exception {
         String path = "/api/rep/ugc/add/artist/album";
         JSONObject payload = new JSONObject()
-                .put("albumVo", new JSONObject().put("albumName", "A").put("notes", "介绍").toString())
+                .put("albumVo", new JSONObject().put("albumName", "A").put("production", "介绍").toString())
                 .put("artistId", 1L);
 
         String params = NetEaseEapi.encrypt(path, payload, "0123456789abcdef", "MUSIC_U=u");
@@ -38,8 +38,8 @@ public class NetEaseEapiTest {
         String plain = new String(decrypt(params), StandardCharsets.UTF_8);
         assertTrue("明文：" + plain, plain.startsWith(path + SEP));
         assertTrue("明文：" + plain, plain.contains("\"albumVo\""));
-        // albumVo 在 EAPI 里是「JSON 字符串」，所以 notes 会被二次转义
-        assertTrue("明文：" + plain, plain.contains("notes"));
+        // albumVo 在 EAPI 里是「JSON 字符串」，所以简介字段会被二次转义
+        assertTrue("明文：" + plain, plain.contains("production"));
         assertTrue("明文：" + plain, plain.contains("\"header\""));
         // 尾部是同一段明文与摘要，长度必然一致
         String[] parts = plain.split(SEP, -1);

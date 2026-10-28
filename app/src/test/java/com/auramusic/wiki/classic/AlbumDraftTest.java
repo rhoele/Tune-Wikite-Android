@@ -26,16 +26,17 @@ public class AlbumDraftTest {
 
         JSONObject vo = AlbumDraft.toAlbumVo("Album", "Sub;Alias", "专辑", "Trans",
                 Arrays.asList(artist, artist2), "Company", 1700000000000L, "华语",
-                Arrays.asList(new AlbumDraft.Tag("1002", "电子")), "Producer", songs,
-                "https://example.com", "notes",
+                Arrays.asList(new AlbumDraft.Tag("1002", "电子")), "专辑介绍文本", songs,
+                "https://example.com", "",
                 null, null);
 
         assertEquals("Album", vo.getString("albumName"));
         assertEquals("Sub;Alias", vo.getString("subtitle"));
         assertEquals("专辑", vo.getString("albumType"));
         assertEquals("Company", vo.getString("company"));
-        // 专辑介绍必须随 albumVo 提交，否则审核通过后简介为空白（v1.1.2 修复）
-        assertEquals("notes", vo.getString("notes"));
+        // 专辑介绍必须写进 production（网页百科字段），notes 只是「补充备注」，审核通过后简介才不会为空
+        assertEquals("专辑介绍文本", vo.getString("production"));
+        assertEquals("", vo.getString("notes"));
         assertEquals(1700000000000L, vo.getLong("publishTime"));
         assertEquals(2, vo.getJSONArray("artistIds").length());
         assertEquals(1, vo.getJSONArray("songTags").length());

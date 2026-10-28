@@ -299,9 +299,9 @@ public class SoundCloudDownloadView extends FrameLayout {
                         });
                         return;
                     }
-                    // 明确的 /sets/ 链接解析失败时不要回退成单曲：
+                    // 明确的 set 链接解析失败时不要回退成单曲：
                     // lucida 只会报「Cannot stream this item type: album」，反而误导用户
-                    if (url.toLowerCase(Locale.ROOT).contains("/sets/")) {
+                    if (SoundCloudSetClient.looksLikeSet(url)) {
                         throw new Exception(getContext().getString(R.string.sc_set_parse_failed));
                     }
                 }

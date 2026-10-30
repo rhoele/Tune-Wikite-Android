@@ -77,6 +77,7 @@ public class BackdropBlurView extends View {
     private int shaderKey;
     private final Path clipPath = new Path();
     private final RectF clipRect = new RectF();
+    private final RectF rimRect = new RectF();
     private final Rect dstRect = new Rect();
     private final int[] selfLocation = new int[2];
     private final int[] sourceLocation = new int[2];
@@ -91,6 +92,13 @@ public class BackdropBlurView extends View {
 
     private int glassStyle = STYLE_NONE;
     private int cornerRadiusPx;
+    /**
+     * 顶部裁掉的像素：底栏收起时把玻璃层上方多出来的那一条藏起来。
+     *
+     * <p>用裁剪而不是改布局高度：改高度会让采样位图重新分配，动画期间每帧重建
+     * 就会出现「一层纯蒙版色」的闪现。
+     */
+    private int topInsetPx;
     private int tintColor = Color.TRANSPARENT;
     private int rimColor = Color.TRANSPARENT;
     private boolean refreshScheduled;
@@ -182,6 +190,25 @@ public class BackdropBlurView extends View {
         }
     }
 
+    /** 顶部裁掉的像素（px）：只影响绘制，不改变采样位图，可逐帧变化 */
+    public void setTopInsetPx(int inset) {
+        int clamped = Math.max(0, inset);
+        if (topInsetPx != clamped) {
+            topInsetPx = clamped;
+            invalidate();
+        }
+    }
+
+    /**
+     * 实际绘制区域的顶边（px）。
+     *
+     * <p>裁剪量必须限制在当前高度之内：底栏样式切换时会先读旧高度，
+     * 越界的裁剪会把整块玻璃裁掉。
+     */
+    private int drawTop() {
+        return Math.min(topInsetPx, Math.max(0, getHeight() - 1));
+    }
+
     /**
      * 设置绘制阶段的纵向位移（px）。
      *
@@ -263,9 +290,9 @@ public class BackdropBlurView extends View {
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
         if (w != oldw || h != oldh) {
-            // 同理：尺寸变化（页面选择器收起、底栏样式切换）时保留旧位图，
-            // 由下一帧的 capture() 自行重建，避免露出一帧纯蒙版色。
-            markDirty();
+            // 尺寸变化（页面选择器展开 / 底栏样式切换）时立刻重采样：
+            // 只 markDirty 会把旧位图拉伸着画一帧，观感上就是「闪一下」。
+            refresh();
         }
     }
 
@@ -482,21 +509,28 @@ public class BackdropBlurView extends View {
         canvas.drawBitmap(backdrop, null, dstRect, bitmapPaint);
         ensureShaders(getHeight());
         if (tintShader != null) {
-            canvas.drawRect(0f, 0f, getWidth(), getHeight(), tintPaint);
+            canvas.drawRect(0f, drawTop(), getWidth(), getHeight(), tintPaint);
         } else {
             canvas.drawColor(tintColor, PorterDuff.Mode.SRC_OVER);
         }
         if (glassStyle == STYLE_LIQUID) {
+            int top = drawTop();
             // 顶部柔光带：让玻璃有明确的受光方向（Expressive 材质的关键观感）
-            canvas.drawRect(0f, 0f, getWidth(), Math.max(1f, getHeight() * 0.55f), sheenPaint);
-            // 液态玻璃：自上而下渐隐的细描边，模拟玻璃棱边
+            canvas.drawRect(0f, top, getWidth(),
+                    top + Math.max(1f, (getHeight() - top) * 0.55f), sheenPaint);
+            // 液态玻璃：自上而下渐隐的细描边，模拟玻璃棱边。
+            // 描边必须内缩半个线宽，否则一半落在裁剪区外，看起来像一条断掉的直线；
+            // 也不复用 clipRect —— 圆角为 0 时它不会被更新，会留下上一次的矩形（轴线矩形）。
+            float strokeWidth = getResources().getDisplayMetrics().density;
+            strokePaint.setStrokeWidth(strokeWidth);
+            float half = strokeWidth / 2f;
+            rimRect.set(half, top + half, getWidth() - half, getHeight() - half);
             strokePaint.setStyle(Paint.Style.STROKE);
-            strokePaint.setStrokeWidth(getResources().getDisplayMetrics().density);
             strokePaint.setShader(rimShader);
             if (rimShader == null) {
                 strokePaint.setColor(rimColor);
             }
-            canvas.drawRoundRect(clipRect, cornerRadiusPx, cornerRadiusPx, strokePaint);
+            canvas.drawRoundRect(rimRect, cornerRadiusPx, cornerRadiusPx, strokePaint);
             strokePaint.setShader(null);
         }
         canvas.restoreToCount(save);
@@ -551,11 +585,15 @@ public class BackdropBlurView extends View {
 
     private int applyClip(Canvas canvas) {
         int save = canvas.save();
+        // 顶边可能被裁掉一截（底栏收起），圆角要按剩下的区域重新算，
+        // 否则上圆角会跟着被裁掉一半、变成直角
+        clipRect.set(0f, drawTop(), getWidth(), getHeight());
         if (cornerRadiusPx > 0) {
-            clipRect.set(0, 0, getWidth(), getHeight());
             clipPath.reset();
             clipPath.addRoundRect(clipRect, cornerRadiusPx, cornerRadiusPx, Path.Direction.CW);
             canvas.clipPath(clipPath);
+        } else {
+            canvas.clipRect(clipRect);
         }
         return save;
     }

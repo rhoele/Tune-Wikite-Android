@@ -466,6 +466,8 @@
     <string name="appearance_blur">页面切换模糊</string>
     <string name="appearance_blur_desc">切换页面时对离场内容施加原生模糊（需 Android 12 及以上）。</string>
     <string name="appearance_blur_unavailable">当前系统不支持硬件模糊，该开关不生效</string>
+    <string name="appearance_notice_default_changed">默认外观已改为「悬浮胶囊 · 关闭玻璃效果」，可在设置里按需调整</string>
+    <string name="appearance_notice_action">去调整</string>
     <string name="settings_summary_experience">动效 %1$s · 振动 %2$s · 导航 %3$s</string>
     <string name="appearance_state_off">关闭</string>
 
@@ -571,7 +573,7 @@
 
     <!-- ============ 声云资源下载 ============ -->
     <string name="sc_title">声云资源下载</string>
-    <string name="sc_desc">粘贴 SoundCloud 曲目或 set（播放列表）链接，先抓取母带原封面再取音源：优先级为「lucida API → lucida 浏览器会话 → 声云直连」；set 会按曲序批量下载，并可一键传入专辑上传。</string>
+    <string name="sc_desc">粘贴 SoundCloud 曲目或 set（播放列表）链接，先抓取母带原封面再取音源：优先级为「lucida API → lucida 浏览器内通道 → 声云直连」；set 会按曲序批量下载，并可一键传入专辑上传。</string>
     <string name="sc_link_title">SoundCloud 链接</string>
     <string name="sc_link_hint">https://soundcloud.com/…</string>
     <string name="sc_action_resolve">解析信息</string>
@@ -630,6 +632,7 @@
     <string name="sc_action_retry">重试</string>
     <string name="sc_action_stop">停止</string>
     <string name="sc_status_stopped">已停止下载</string>
+    <string name="sc_status_stopping">正在停止下载…</string>
     <string name="sc_status_stopped_partial">已停止：成功 %1$d 首，%2$d 首未完成</string>
     <string name="sc_failures_title">以下曲目下载失败</string>
     <string name="sc_failure_retry">重下</string>
@@ -712,9 +715,10 @@
     <string name="au_action_cancel">取消</string>
     <string name="au_action_remove">移除</string>
     <string name="au_artist_search_title">选择艺人</string>
-    <string name="au_artist_search_hint">搜索艺人名</string>
+    <string name="au_artist_search_hint">搜索艺人名、ID 或艺人链接</string>
     <string name="au_artist_search_empty">没有找到相关艺人</string>
     <string name="au_artist_search_failed">搜索艺人失败，请检查网络后重试</string>
+    <string name="au_artist_link_failed">未能识别该艺人链接，请手动填写</string>
     <string name="link_no_app">未找到可打开该链接的应用</string>
     <string name="link_open_failed">打开链接失败</string>
     <string name="au_artist_add_custom">直接添加「%1$s」</string>
@@ -741,6 +745,8 @@
     <string name="au_submit_ok">已提交审核，可在「我的贡献」查看进度</string>
     <string name="au_submit_failed">提交失败：%1$s</string>
     <string name="au_pick_audio_failed">无法读取所选音频</string>
+    <string name="au_importing">正在导入 %1$d 个音频…</string>
+    <string name="au_import_partial">%1$d 个文件添加失败</string>
     <string name="au_folder_empty">所选文件夹里没有可用的音频</string>
     <string name="au_cover_pick_failed">无法读取所选图片</string>
     <string name="au_handoff_loaded">已接收声云下载资源：%1$s</string>

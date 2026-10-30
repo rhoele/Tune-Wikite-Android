@@ -64,6 +64,60 @@ public class WikiIdParserTest {
     }
 
     @Test
+    public void artistIdFromPlainNumberAndExtraQuery() {
+        assertEquals(56949793L, WikiIdParser.parseArtistId("56949793"));
+        assertEquals(56949793L, WikiIdParser.parseArtistId(
+                "https://music.163.com/artist?userid=1&id=56949793&utm_source=x"));
+        // 链接末尾被一起复制的标点不影响解析
+        assertEquals(56949793L, WikiIdParser.parseArtistId(
+                "https://music.163.com/artist?id=56949793，"));
+    }
+
+    @Test
+    public void artistShareTextWithMultipleLinksPicksArtist() {
+        String share = "分享歌手: Inaharu\n"
+                + "https://music.163.com/song?id=111111\n"
+                + "https://y.music.163.com/m/artist?id=56949793 （来自@网易云音乐）";
+        assertEquals(56949793L, WikiIdParser.parseArtistId(share));
+    }
+
+    @Test
+    public void nonArtistLinksAreNotMistakenForArtist() {
+        assertEquals(-1L, WikiIdParser.parseArtistId("https://music.163.com/song?id=347230"));
+        assertEquals(-1L, WikiIdParser.parseArtistId("https://music.163.com/album?id=347230"));
+        assertEquals(-1L, WikiIdParser.parseArtistId(
+                "https://music.163.com/playlist?id=347230"));
+        // 歌手名出现在 query 里但路径不是艺人页
+        assertEquals(-1L, WikiIdParser.parseArtistId(
+                "https://music.163.com/song?id=1&artist=347230"));
+    }
+
+    @Test
+    public void invalidHostsAndIdsAreRejected() {
+        assertEquals(-1L, WikiIdParser.parseArtistId(
+                "https://music.163.com.evil.com/artist?id=56949793"));
+        assertEquals(-1L, WikiIdParser.parseArtistId(
+                "https://example.com/artist?id=56949793"));
+        assertEquals(-1L, WikiIdParser.parseArtistId(
+                "https://music.163.com/artist?id=0"));
+        assertEquals(-1L, WikiIdParser.parseArtistId(
+                "https://music.163.com/artist?id=abc"));
+        assertEquals(-1L, WikiIdParser.parseArtistId(
+                "https://music.163.com/artist?name=Inaharu"));
+    }
+
+    @Test
+    public void sameShareTextYieldsSameIdForAlbumAndSongEntries() {
+        // 专辑艺人（ArtistPickerDialog）与单曲艺人（歌曲编辑弹窗）共用同一解析核心，
+        // 同一份粘贴内容必须得到完全一致的艺人 ID。
+        String share = "分享歌手: Inaharu https://y.music.163.com/m/artist?id=56949793 （来自@网易云音乐）";
+        long fromAlbum = WikiIdParser.parseArtistId(share);
+        long fromSong = WikiIdParser.parseArtistId(share);
+        assertEquals(56949793L, fromAlbum);
+        assertEquals(fromAlbum, fromSong);
+    }
+
+    @Test
     public void shareTextWithLooseDigitsIsParsed() {
         assertEquals(347230L, WikiIdParser.parse("分享单曲 347230 来自网易云音乐"));
     }

@@ -520,13 +520,13 @@ public class AppearanceSettingsActivity extends BaseActivity {
         rowNavStyle = SettingsRows.addOptionRow(getLayoutInflater(), experience,
                 R.string.appearance_nav_style, R.string.appearance_option_nav_desc,
                 navValue(), this::pickNavStyle,
-                R.drawable.ic_dashboard, Md3ListItemView.TILE_PRIMARY, asCards);
+                R.drawable.ic_nav_style, Md3ListItemView.TILE_PRIMARY, asCards);
         // 底栏材质：关闭 / 亚克力 / 液态玻璃。开启后底栏与页面选择器共用同一块玻璃层，
         // 页面滚动时模糊实时跟随（见 MainActivity#applyNavStyle 与 BackdropBlurView）。
         rowNavGlass = SettingsRows.addOptionRow(getLayoutInflater(), experience,
                 R.string.appearance_nav_glass, R.string.appearance_option_nav_glass_desc,
                 navGlassValue(), this::pickNavGlass,
-                R.drawable.ic_image, Md3ListItemView.TILE_SECONDARY, asCards);
+                R.drawable.ic_glass, Md3ListItemView.TILE_SECONDARY, asCards);
         SettingsRows.addOptionRow(getLayoutInflater(), experience,
                 R.string.appearance_density, R.string.appearance_density_desc,
                 densityValue(), this::pickDensity,
@@ -543,7 +543,7 @@ public class AppearanceSettingsActivity extends BaseActivity {
                         ? R.string.appearance_row_cards_separate
                         : R.string.appearance_row_cards_grouped),
                 this::pickRowStyle,
-                R.drawable.ic_density, Md3ListItemView.TILE_TERTIARY, false);
+                R.drawable.ic_text_fields, Md3ListItemView.TILE_TERTIARY, false);
         // 模糊的说明单独用 tv_blur_desc 承载，因此必须放在卡片最后一行，
         // 否则注释会与所属的开关行被其他行隔开。
         switchBlur = SettingsRows.addSwitchRow(getLayoutInflater(), experience,

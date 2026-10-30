@@ -111,7 +111,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         app:md3IconTileColor="secondary"
-                        app:md3LeadingIcon="@drawable/ic_badge"
+                        app:md3LeadingIcon="@drawable/ic_task_alt"
                         app:md3Supporting="@string/cloud_editor_entry_desc"
                         app:md3Title="@string/cloud_editor_title"
                         app:md3TrailingMode="chevron" />

@@ -446,6 +446,7 @@
                                 app:tabRippleColor="@null" />
 
                             <HorizontalScrollView
+                                android:id="@+id/chip_status_scroll"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:paddingStart="@dimen/screen_horizontal_margin"
@@ -465,6 +466,7 @@
                             </HorizontalScrollView>
 
                             <FrameLayout
+                                android:id="@+id/contrib_list"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:minHeight="@dimen/contrib_list_min_height">

@@ -94,6 +94,8 @@ public final class WikiPrefs {
     public static final String KEY_ROW_STYLE = "ui_row_style";
     /** 色彩方案变体（tonal / vibrant / expressive / neutral），与种子色相互独立 */
     public static final String KEY_SCHEME_VARIANT = "appearance_scheme_variant";
+    /** 默认外观变更的一次性提示是否已展示（老用户升级后解释为什么外观变了） */
+    public static final String KEY_APPEARANCE_NOTICE = "ui_appearance_notice_shown";
 
     // ------------------------------------------------------------------
     // 推送（FCM）

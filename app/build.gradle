@@ -38,8 +38,8 @@ android {
         applicationId "com.auramusic.wiki.classic"
         minSdk 26
         targetSdk 34
-        versionCode 10201
-        versionName "1.2.1"
+        versionCode 10202
+        versionName "1.2.2"
 
         // 自有推送服务的基地址。正式包只接受构建时显式注入的 HTTPS 地址，
         // 缺省为空表示不上报令牌（见下方 buildTypes）。
@@ -112,6 +112,11 @@ dependencies {
     implementation 'com.google.zxing:core:3.5.3'
     // 选择文件夹批量导入音频（SAF 文档树）
     implementation 'androidx.documentfile:documentfile:1.0.1'
+
+    // lucida 的 Cloudflare 通行证与 TLS/HTTP2 指纹绑定，原生 HttpURLConnection 的
+    // Conscrypt 指纹对不上；Cronet 与 WebView 同源（Chromium/BoringSSL），才有机会复用
+    implementation 'com.google.android.gms:play-services-cronet:18.1.0'
+    implementation 'org.chromium.net:cronet-api:119.6045.31'
 
     // Compose：仅新页面使用，BOM 统一版本；material3 与 XML 侧 Material Components 主题同源
     implementation platform('androidx.compose:compose-bom:2024.09.03')

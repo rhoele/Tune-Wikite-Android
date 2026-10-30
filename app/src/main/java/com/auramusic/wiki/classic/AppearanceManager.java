@@ -475,17 +475,38 @@ public final class AppearanceManager {
     }
 
     /**
-     * 底栏玻璃效果档位（默认亚克力），非法值回落到亚克力。
+     * 底栏玻璃效果档位（默认关闭），非法值回落到关闭。
      *
      * <p>与 {@code BackdropBlurView.STYLE_*} 取值一一对应。
      */
     public static int navGlassStyle(Context context) {
-        int v = prefs(context).getInt(WikiPrefs.KEY_NAV_GLASS, GLASS_ACRYLIC);
-        return v < GLASS_NONE || v > GLASS_LIQUID ? GLASS_ACRYLIC : v;
+        int v = prefs(context).getInt(WikiPrefs.KEY_NAV_GLASS, GLASS_NONE);
+        return v < GLASS_NONE || v > GLASS_LIQUID ? GLASS_NONE : v;
     }
 
     public static void setNavGlassStyle(Context context, int style) {
         prefs(context).edit().putInt(WikiPrefs.KEY_NAV_GLASS, style).apply();
+    }
+
+    /**
+     * 是否需要提示「默认外观已调整」。
+     *
+     * <p>只对老用户提示：本地已经存过外观偏好，说明用的是旧默认值（悬浮底栏 + 亚克力），
+     * 新版默认值不会再影响他们，但需要解释一次变化，避免以为设置被重置。
+     * 全新安装直接就是新默认值，不需要提示。
+     */
+    public static boolean needsAppearanceNotice(Context context) {
+        SharedPreferences p = prefs(context);
+        if (p.getBoolean(WikiPrefs.KEY_APPEARANCE_NOTICE, false)) {
+            return false;
+        }
+        return p.contains(WikiPrefs.KEY_NAV_GLASS)
+                || p.contains(WikiPrefs.KEY_NAV_STYLE)
+                || p.contains(WikiPrefs.KEY_BLUR);
+    }
+
+    public static void markAppearanceNoticeShown(Context context) {
+        prefs(context).edit().putBoolean(WikiPrefs.KEY_APPEARANCE_NOTICE, true).apply();
     }
 
     public static int navGlassLabelRes(int style) {

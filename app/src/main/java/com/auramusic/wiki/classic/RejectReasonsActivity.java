@@ -45,9 +45,6 @@ public class RejectReasonsActivity extends BaseActivity {
 
     private static final String TAG = "RejectReasons";
 
-    /** 首屏自动展开一组的条数上限：内容太多时不自动铺开，避免进入页面就长出一屏 */
-    private static final int AUTO_EXPAND_MAX_ITEMS = 8;
-
     /** 展开 / 收起动画的时长区间（毫秒），按内容高度插值，保证长短列表的观感一致 */
     private static final long MIN_ANIM_MS = 200L;
     private static final long MAX_ANIM_MS = 700L;
@@ -89,8 +86,6 @@ public class RejectReasonsActivity extends BaseActivity {
     private boolean syncing;
     /** 空态下同步按钮的呼吸提示（引导用户注意右上角的扫描入口） */
     private ValueAnimator syncHint;
-    /** 首次渲染默认展开最新一组，之后尊重用户自己的展开状态 */
-    private boolean initialExpandDone;
     private ObjectAnimator syncSpin;
     /** 上一次渲染的数据指纹：数据没变时不再重建整页 */
     private String renderedSignature;
@@ -291,11 +286,8 @@ public class RejectReasonsActivity extends BaseActivity {
         lastIconRes = 0;
         lastTileIndex = -1;
         resolveColors();
-        if (total > 0 && !initialExpandDone && !groups.isEmpty()
-                && groups.get(0).items.size() <= AUTO_EXPAND_MAX_ITEMS) {
-            expandedKeys.add(keyOf(groups.get(0)));
-        }
-        initialExpandDone = true;
+        // 全部按收起状态渲染：之前「首屏自动展开第一条」会随数据落到不同类别上，
+        // 看起来像某个类别的第一条原因被固定展开，且用户收起后下次进来又出现
         // 先按项目类型分节：标题栏显示类别，右侧控件整节展开 / 收起
         java.util.Map<Integer, java.util.List<RejectArchive.Group>> sections =
                 new java.util.LinkedHashMap<>();

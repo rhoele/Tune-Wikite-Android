@@ -14,6 +14,7 @@ import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -77,6 +78,11 @@ public class SoundCloudDownloadView extends FrameLayout {
     private Runnable retryAction;
     /** 用户请求停止当前下载：批量任务会在当前曲目结束后退出 */
     private volatile boolean stopRequested;
+    /** 立即取消信号：交给下载通道，让正在读响应体的任务尽快退出 */
+    private final java.util.concurrent.atomic.AtomicBoolean cancelRequested =
+            new java.util.concurrent.atomic.AtomicBoolean();
+    /** 下载任务代次：迟到的旧回调不得覆盖新任务的状态与按钮 */
+    private int taskSeq;
     /** 最近一次批量下载失败的曲目（供逐首重下） */
     private final List<SoundCloudSetClient.Track> failedTracks = new ArrayList<>();
 
@@ -128,6 +134,7 @@ public class SoundCloudDownloadView extends FrameLayout {
         scroll = findViewById(R.id.sc_scroll);
         urlInput = findViewById(R.id.et_sc_url);
         InputScroll.enable(urlInput);
+        installFocusClearing();
         coverPreview = findViewById(R.id.iv_sc_cover);
         titleView = findViewById(R.id.tv_sc_title);
         artistView = findViewById(R.id.tv_sc_artist);
@@ -242,6 +249,53 @@ public class SoundCloudDownloadView extends FrameLayout {
         int right = scroll.getPaddingRight();
         if (scroll.getPaddingBottom() != px) {
             scroll.setPadding(left, top, right, px);
+        }
+    }
+
+    /**
+     * 点击页面空白处时收起输入法并取消焦点。
+     *
+     * <p>只处理落在当前焦点输入框之外的按下事件：点输入框继续编辑、点按钮或下拉框
+     * 则交给控件自己处理，不拦截点击与波纹。
+     */
+    private void installFocusClearing() {
+        if (scroll == null) {
+            return;
+        }
+        scroll.setOnTouchListener((v, event) -> {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                View focused = findFocus();
+                if (focused instanceof EditText && !hitInside(focused, event)) {
+                    focused.clearFocus();
+                    hideKeyboard();
+                }
+            }
+            return false;
+        });
+    }
+
+    private boolean hitInside(View view, MotionEvent event) {
+        if (view == null || view.getVisibility() != View.VISIBLE) {
+            return false;
+        }
+        int[] location = new int[2];
+        view.getLocationOnScreen(location);
+        float x = event.getRawX();
+        float y = event.getRawY();
+        return x >= location[0] && x <= location[0] + view.getWidth()
+                && y >= location[1] && y <= location[1] + view.getHeight();
+    }
+
+    private void hideKeyboard() {
+        try {
+            android.view.inputmethod.InputMethodManager imm =
+                    (android.view.inputmethod.InputMethodManager) getContext()
+                            .getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(getWindowToken(), 0);
+            }
+        } catch (Exception ignored) {
+            // 输入法不可用时无需处理
         }
     }
 
@@ -502,6 +556,7 @@ public class SoundCloudDownloadView extends FrameLayout {
         final AudioTagger.Tags tags = tagsFor(title, artist, track, null, 0);
         setBusy(true, getContext().getString(R.string.sc_progress_audio, 0));
         prepareNewTask();
+        final int task = ++taskSeq;
         // 每次单曲下载重新询问「是否允许直连兜底」
         SoundCloudDownloader.resetPrompt();
         executor.execute(() -> {
@@ -512,28 +567,47 @@ public class SoundCloudDownloadView extends FrameLayout {
                         new SoundCloudDownloader.Progress() {
                             @Override
                             public void onStatus(String text) {
-                                main.post(() -> statusView.setText(text));
+                                main.post(() -> {
+                                    if (task != taskSeq) {
+                                        return;
+                                    }
+                                    statusView.setText(text);
+                                });
                             }
 
                             @Override
                             public void onPercent(int percent) {
                                 main.post(() -> {
+                                    if (task != taskSeq) {
+                                        return;
+                                    }
                                     statusView.setText(getContext().getString(
                                             R.string.sc_progress_audio, percent));
                                 });
                             }
-                        });
+                        }, cancelRequested);
                 File result = downloaded;
                 if (convert) {
-                    main.post(() -> statusView.setText(R.string.sc_progress_convert));
+                    main.post(() -> {
+                        if (task == taskSeq) {
+                            statusView.setText(R.string.sc_progress_convert);
+                        }
+                    });
                     File wav = new File(downloaded.getParentFile(),
                             stripExt(downloaded.getName()) + "-32bit.wav");
                     result = PcmWavConverter.toWav32(downloaded, wav,
-                            text -> main.post(() -> statusView.setText(text)));
+                            text -> main.post(() -> {
+                                if (task == taskSeq) {
+                                    statusView.setText(text);
+                                }
+                            }));
                 }
                 final File finalFile = result;
                 DownloadStore.exportAsync(getContext(), DownloadStore.KIND_AUDIO, finalFile);
                 main.post(() -> {
+                    if (task != taskSeq) {
+                        return;
+                    }
                     downloadedTracks.clear();
                     downloadedTracks.add(new DownloadedTrack(finalFile, title, artist));
                     hideRetry();
@@ -543,7 +617,17 @@ public class SoundCloudDownloadView extends FrameLayout {
                     markHandoffAvailable(true, false);
                 });
             } catch (Exception e) {
+                final boolean cancelled = cancelRequested.get();
                 main.post(() -> {
+                    if (task != taskSeq) {
+                        return;
+                    }
+                    if (cancelled) {
+                        // 用户主动停止：明确告知已结束，并恢复可操作状态
+                        setBusy(false, getContext().getString(R.string.sc_status_stopped));
+                        hideRetry();
+                        return;
+                    }
                     setBusy(false, getContext().getString(R.string.sc_audio_failed,
                             messageOf(e)));
                     showRetry(this::downloadAudio);
@@ -576,6 +660,7 @@ public class SoundCloudDownloadView extends FrameLayout {
         // 每批 set 只询问一次「是否允许直连兜底」
         SoundCloudDownloader.resetPrompt();
         setBusy(true, getContext().getString(R.string.sc_progress_set, 0, downloadable, 0));
+        final int task = ++taskSeq;
         executor.execute(() -> {
             File dir = DownloadStore.dir(getContext(), DownloadStore.KIND_AUDIO);
             List<DownloadedTrack> out = new ArrayList<>();
@@ -584,7 +669,7 @@ public class SoundCloudDownloadView extends FrameLayout {
             int processed = 0;
             boolean stopped = false;
             for (int i = 0; i < total; i++) {
-                if (stopRequested) {
+                if (stopRequested || cancelRequested.get()) {
                     stopped = true;
                     break;
                 }
@@ -597,8 +682,13 @@ public class SoundCloudDownloadView extends FrameLayout {
                 final int index = ++processed;
                 final String trackTitle = titleOf(item.title, item.url);
                 // 实时显示当前正在下载的曲目名称
-                main.post(() -> statusView.setText(getContext().getString(
-                        R.string.sc_progress_set_current, trackTitle, index, downloadable)));
+                main.post(() -> {
+                    if (task != taskSeq) {
+                        return;
+                    }
+                    statusView.setText(getContext().getString(
+                            R.string.sc_progress_set_current, trackTitle, index, downloadable));
+                });
                 try {
                     // 前缀序号既保证文件顺序，也避免同名曲目互相覆盖
                     String fileName = String.format(Locale.CHINA, "%02d - %s", index, trackTitle);
@@ -608,19 +698,29 @@ public class SoundCloudDownloadView extends FrameLayout {
                             new SoundCloudDownloader.Progress() {
                                 @Override
                                 public void onStatus(String text) {
-                                    main.post(() -> statusView.setText(getContext().getString(
-                                            R.string.sc_progress_set_current,
-                                            trackTitle, index, downloadable)));
+                                    main.post(() -> {
+                                        if (task != taskSeq) {
+                                            return;
+                                        }
+                                        statusView.setText(getContext().getString(
+                                                R.string.sc_progress_set_current,
+                                                trackTitle, index, downloadable));
+                                    });
                                 }
 
                                 @Override
                                 public void onPercent(int percent) {
-                                    main.post(() -> statusView.setText(
-                                            getContext().getString(R.string.sc_progress_set_current,
-                                                    trackTitle, index, downloadable)
-                                                    + " · " + percent + "%"));
+                                    main.post(() -> {
+                                        if (task != taskSeq) {
+                                            return;
+                                        }
+                                        statusView.setText(
+                                                getContext().getString(R.string.sc_progress_set_current,
+                                                        trackTitle, index, downloadable)
+                                                        + " · " + percent + "%");
+                                    });
                                 }
-                            });
+                            }, cancelRequested);
                     File result = downloaded;
                     if (convert) {
                         File wav = new File(downloaded.getParentFile(),
@@ -638,6 +738,9 @@ public class SoundCloudDownloadView extends FrameLayout {
             final int processedCount = processed;
             final boolean wasStopped = stopped;
             main.post(() -> {
+                if (task != taskSeq) {
+                    return;
+                }
                 downloadedTracks.clear();
                 downloadedTracks.addAll(out);
                 failedTracks.clear();
@@ -750,7 +853,12 @@ public class SoundCloudDownloadView extends FrameLayout {
         formatInput.setEnabled(!value);
         convertSwitch.setEnabled(!value);
         if (value) {
-            hideRetry();
+            // 下载中只给「停止」：以前要等失败后才出现，用户看到卡在某个百分比时无从操作
+            retryAction = null;
+            MotionManager.animateVisibility(getContext(), retryButton, false);
+            MotionManager.animateVisibility(getContext(), stopButton, true);
+        } else {
+            MotionManager.animateVisibility(getContext(), stopButton, false);
         }
         if (!TextUtils.isEmpty(status)) {
             statusView.setText(status);
@@ -771,18 +879,32 @@ public class SoundCloudDownloadView extends FrameLayout {
         MotionManager.animateVisibility(getContext(), stopButton, false);
     }
 
-    /** 用户点按「停止」：中断本次任务（批量会在当前曲目结束后退出）。 */
+    /** 用户点按「停止」：立刻取消当前通道，批量任务在当前曲目结束处退出。 */
     private void requestStop() {
         stopRequested = true;
+        cancelRequested.set(true);
         hideRetry();
-        statusView.setText(R.string.sc_status_stopped);
+        statusView.setText(R.string.sc_status_stopping);
     }
 
     /** 点击「重试」/开始新一轮任务时复位停止标记与失败清单。 */
     private void prepareNewTask() {
         stopRequested = false;
+        cancelRequested.set(false);
         failedTracks.clear();
         renderFailures();
+    }
+
+    /**
+     * 页面被移出窗口（切换底部导航 / Activity 销毁）：取消下载并关掉浏览器兜底通道，
+     * 避免 WebView + Dialog 一直挂在窗口上直到超时。
+     */
+    @Override
+    protected void onDetachedFromWindow() {
+        cancelRequested.set(true);
+        stopRequested = true;
+        LucidaBrowser.closeAll();
+        super.onDetachedFromWindow();
     }
 
     /** 渲染批量下载的失败清单：每行一首歌 + 单独重下按钮。 */

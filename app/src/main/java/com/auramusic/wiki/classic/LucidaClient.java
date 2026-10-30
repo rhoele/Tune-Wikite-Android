@@ -34,49 +34,91 @@ import java.util.Locale;
 final class LucidaClient {
 
     private static final String BASE = "https://lucida.to";
-    private static final String UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
     private static final int CONNECT_TIMEOUT = 15000;
     private static final int READ_TIMEOUT = 60000;
     private static final long POLL_TIMEOUT_MS = 20 * 60 * 1000L;
 
-    /** WebView 过 Cloudflare 后拿到的会话：UA 必须与拿 cf_clearance 时完全一致 */
-    private static volatile String sessionCookie = "";
-    private static volatile String sessionUserAgent = "";
+    private static final String UA = "Mozilla/5.0 (Linux; Android 14) "
+            + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36";
 
-    /** 注入浏览器会话；cookie 为空表示清除 */
-    static void setSession(String cookie, String userAgent) {
-        sessionCookie = cookie == null ? "" : cookie;
-        sessionUserAgent = userAgent == null ? "" : userAgent;
+    /**
+     * 浏览器内请求通道。
+     *
+     * <p>Cloudflare 的 {@code cf_clearance} 与浏览器指纹（UA + TLS/HTTP2 + IP）绑定：
+     * 用 Java 自带 HTTP 栈即使带上通行证，也会被当成另一个客户端判 403。
+     * 因此被拦下时改为把请求交回 WebView 的页面上下文执行，
+     * 与 cloudscraper / nodriver 的思路一致 —— 挑战和业务请求必须出自同一个浏览器。
+     */
+    interface Transport {
+        String request(String method, String url, String body) throws IOException;
+
+        Downloaded download(String url, File dir, Progress progress,
+                            java.util.concurrent.atomic.AtomicBoolean cancelled) throws IOException;
     }
 
-    static boolean hasSession() {
-        return !sessionCookie.isEmpty();
+    /** 浏览器通道下载好的临时文件与其 MIME 类型（扩展名由调用方按类型决定） */
+    static final class Downloaded {
+        final File file;
+        final String contentType;
+
+        Downloaded(File file, String contentType) {
+            this.file = file;
+            this.contentType = contentType;
+        }
     }
 
-    /** 是否是 Cloudflare 挑战（403），用于决定是否需要走 WebView 过验证 */
+    /**
+     * 浏览器通道按线程隔离。
+     *
+     * <p>整个下载流程（建任务 → 轮询 → 取文件）都在调用线程里同步执行，用 ThreadLocal 后
+     * 两个下载任务并发时不会互相清掉对方的通道（此前是全局静态字段）。
+     */
+    private static final ThreadLocal<Transport> TRANSPORT = new ThreadLocal<>();
+
+    /** 注入 / 清除当前线程的浏览器通道；为 {@code null} 时回到原生 HTTP 栈 */
+    static void setTransport(Transport value) {
+        if (value == null) {
+            TRANSPORT.remove();
+        } else {
+            TRANSPORT.set(value);
+        }
+    }
+
+    private static Transport transport() {
+        return TRANSPORT.get();
+    }
+
+    /**
+     * 是否是 Cloudflare 挑战（403 / 503）。
+     *
+     * <p>只认「状态码写在消息开头」的两种形态：响应体摘要里恰好出现 "HTTP 403" 时
+     * 不应被误判成挑战（否则普通失败也会去开浏览器通道）。
+     */
     static boolean isChallenge(Throwable error) {
         String message = error == null ? "" : error.getMessage();
-        return message != null && (message.contains("HTTP 403") || message.contains("HTTP 503"));
+        if (message == null) {
+            return false;
+        }
+        return message.startsWith("HTTP 403") || message.startsWith("HTTP 503")
+                || message.startsWith("下载失败 HTTP 403")
+                || message.startsWith("下载失败 HTTP 503");
     }
 
-    private static String userAgent() {
-        return sessionUserAgent.isEmpty() ? UA : sessionUserAgent;
-    }
-
-    /** 模拟站内 fetch 的请求头：Cloudflare 对缺失 Sec-Fetch / Origin 的请求更敏感。 */
+    /**
+     * 模拟站内 fetch 的请求头：Cloudflare 对缺失 Sec-Fetch / Origin 的请求更敏感。
+     *
+     * <p>这只能让「没开挑战」的请求更接近浏览器；一旦站点下发挑战，靠改头是过不去的
+     * （通行证与 TLS 指纹绑定），此时必须切到 {@link LucidaBrowser} 的页面内请求。
+     */
     private static void applyHeaders(HttpURLConnection conn) {
-        conn.setRequestProperty("User-Agent", userAgent());
+        conn.setRequestProperty("User-Agent", UA);
         conn.setRequestProperty("Referer", BASE + "/");
         conn.setRequestProperty("Accept", "*/*");
-        conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
-        if (!sessionCookie.isEmpty()) {
-            conn.setRequestProperty("Cookie", sessionCookie);
-            conn.setRequestProperty("Origin", BASE);
-            conn.setRequestProperty("Sec-Fetch-Site", "same-origin");
-            conn.setRequestProperty("Sec-Fetch-Mode", "cors");
-            conn.setRequestProperty("Sec-Fetch-Dest", "empty");
-        }
+        conn.setRequestProperty("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
+        conn.setRequestProperty("Origin", BASE);
+        conn.setRequestProperty("Sec-Fetch-Site", "same-origin");
+        conn.setRequestProperty("Sec-Fetch-Mode", "cors");
+        conn.setRequestProperty("Sec-Fetch-Dest", "empty");
     }
 
     private LucidaClient() {
@@ -189,6 +231,18 @@ final class LucidaClient {
      */
     static File download(String pageUrl, String downscale, String account, String title,
                          File dir, Progress progress) throws IOException {
+        return download(pageUrl, downscale, account, title, dir, progress, null);
+    }
+
+    /**
+     * 建任务并轮询到完成，最后把文件流式写入 {@code dir}。
+     *
+     * @param cancelled 取消信号（可为 null）：置位后在轮询与取文件阶段尽快退出
+     * @return 已落盘的音频文件
+     */
+    static File download(String pageUrl, String downscale, String account, String title,
+                         File dir, Progress progress,
+                         java.util.concurrent.atomic.AtomicBoolean cancelled) throws IOException {
         if (!dir.isDirectory() && !dir.mkdirs()) {
             throw new IOException("无法创建下载目录");
         }
@@ -246,6 +300,9 @@ final class LucidaClient {
         boolean completed = false;
         String lastMessage = "";
         while (System.currentTimeMillis() < deadline) {
+            if (cancelled != null && cancelled.get()) {
+                throw new IOException("已取消下载");
+            }
             JSONObject status;
             try {
                 status = new JSONObject(request("GET", jobUrl, null));
@@ -275,12 +332,35 @@ final class LucidaClient {
             throw new IOException("处理超时，请稍后重试");
         }
 
-        return fetchFile(jobUrl + "/download", dir, title, progress);
+        return fetchFile(jobUrl + "/download", dir, title, progress, cancelled);
     }
 
-    /** 下载文件流；按 Content-Type 映射扩展名，拒绝 HTML 错误页。 */
-    private static File fetchFile(String urlStr, File dir, String title, Progress progress)
+    /** 把临时文件改成「标题 + 按 MIME 推出来的扩展名」；目标已存在时先删。 */
+    private static File renameTo(Downloaded result, File dir, String title) throws IOException {
+        File out = new File(dir, safeName(title) + "." + extFor(result.contentType));
+        if (out.exists() && !out.delete()) {
+            result.file.delete();
+            throw new IOException("写入文件失败");
+        }
+        if (!result.file.renameTo(out)) {
+            result.file.delete();
+            throw new IOException("写入文件失败");
+        }
+        return out;
+    }
+
+    /** 下载文件流；按 Content-Type 映射扩展名，拒绝 HTML / JSON 错误页。 */
+    private static File fetchFile(String urlStr, File dir, String title, Progress progress,
+                                  java.util.concurrent.atomic.AtomicBoolean cancelled)
             throws IOException {
+        Transport bridge = transport();
+        if (bridge != null) {
+            // 需要过盾的地址不再让原生栈去碰：由页面内的 fetch 流式取回
+            return renameTo(bridge.download(urlStr, dir, progress, cancelled), dir, title);
+        }
+        if (CronetHttp.available()) {
+            return renameTo(CronetHttp.download(urlStr, dir, progress, cancelled), dir, title);
+        }
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
         conn.setConnectTimeout(CONNECT_TIMEOUT);
         conn.setReadTimeout(READ_TIMEOUT);
@@ -294,7 +374,7 @@ final class LucidaClient {
                 throw new IOException("下载失败 HTTP " + code + "：" + brief(text));
             }
             String type = conn.getContentType();
-            if (type != null && type.toLowerCase(Locale.ROOT).startsWith("text/html")) {
+            if (!CronetHttp.isDownloadableType(type)) {
                 throw new IOException("服务返回了网页而不是文件");
             }
             String ext = extFor(type);
@@ -324,6 +404,10 @@ final class LucidaClient {
                 }
                 if (part.length() <= 0) {
                     throw new IOException("下载结果为空");
+                }
+                if (total > 0 && part.length() < total) {
+                    // 服务端声明了长度却提前断开：不能把半截文件改名成正式音频
+                    throw new IOException("下载不完整（" + part.length() + "/" + total + " 字节）");
                 }
                 if (!part.renameTo(out)) {
                     // 目标已存在（同名覆盖）或改名失败：删掉旧目标后重试一次
@@ -383,6 +467,15 @@ final class LucidaClient {
     }
 
     private static String request(String method, String urlStr, String body) throws IOException {
+        Transport bridge = transport();
+        if (bridge != null) {
+            return bridge.request(method, urlStr, body);
+        }
+        // Cronet 与 WebView 同一套网络栈，指纹对得上，才有机会直接用上 cf_clearance；
+        // 设备没有 Play 服务时 available() 为 false，退回下面的原生栈
+        if (CronetHttp.available()) {
+            return CronetHttp.request(method, urlStr, body);
+        }
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
         conn.setRequestMethod(method);
         conn.setConnectTimeout(CONNECT_TIMEOUT);
@@ -430,7 +523,7 @@ final class LucidaClient {
         return out.toByteArray();
     }
 
-    private static String brief(String text) {
+    static String brief(String text) {
         if (text == null) {
             return "";
         }

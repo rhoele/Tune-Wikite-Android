@@ -103,6 +103,17 @@ final class AlbumDraft {
          */
         int uploadStage = STAGE_IDLE;
 
+        /**
+         * 上传代次：替换音频 / 移除曲目时自增，旧任务的所有回调据此作废。
+         *
+         * <p>线程池里的上传无法真正中断，只能让它的结果不再落到歌曲状态上。
+         */
+        volatile int uploadToken;
+        /** 旧任务退出后需要用当前文件重新上传（替换音频时避免两条上传并行）。 */
+        boolean pendingUpload;
+        /** 旧任务还在读的文件：等它退出后再删，避免边传边删导致失败。 */
+        File recycleFile;
+
         boolean uploading() {
             return uploadStage != STAGE_IDLE;
         }

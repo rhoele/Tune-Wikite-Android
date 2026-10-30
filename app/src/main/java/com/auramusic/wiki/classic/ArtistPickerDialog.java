@@ -73,6 +73,9 @@ final class ArtistPickerDialog {
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Handler main = new Handler(Looper.getMainLooper());
+        // 请求序号：异步结果返回时若用户已继续输入，直接丢弃，避免旧结果覆盖新输入
+        final int[] seq = {0};
+        final Runnable[] pending = new Runnable[1];
         search.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -85,39 +88,88 @@ final class ArtistPickerDialog {
             @Override
             public void afterTextChanged(Editable s) {
                 String keyword = s == null ? "" : s.toString().trim();
+                final int token = ++seq[0];
+                if (pending[0] != null) {
+                    main.removeCallbacks(pending[0]);
+                    pending[0] = null;
+                }
                 if (keyword.isEmpty()) {
-                    suggestTitle.setVisibility(suggestions.isEmpty() ? View.GONE : View.VISIBLE);
+                    progress.setVisibility(View.GONE);
                     empty.setVisibility(View.GONE);
+                    suggestTitle.setVisibility(suggestions.isEmpty() ? View.GONE : View.VISIBLE);
                     adapter.submit(suggestions);
                     return;
                 }
                 suggestTitle.setVisibility(View.GONE);
-                progress.setVisibility(View.VISIBLE);
-                executor.execute(() -> {
-                    try {
-                        List<AlbumDraft.Artist> results = NetEaseWikiClient.searchArtists(
-                                context.getApplicationContext(), keyword, null);
-                        main.post(() -> {
-                            progress.setVisibility(View.GONE);
-                            empty.setVisibility(View.GONE);
-                            // 与原 APK / 网页版一致：只要用户有输入，就始终保留
-                            // 「直接添加『关键词』」入口，搜索结果显示在其下方。
-                            adapter.submit(results, keyword);
-                        });
-                    } catch (Exception e) {
-                        main.post(() -> {
-                            progress.setVisibility(View.GONE);
-                            empty.setVisibility(View.VISIBLE);
+                // 粘贴「分享歌手」口令 / 艺人链接时按链接里的 ID 取艺人；
+                // 其余输入仍走关键词搜索。统一 320ms 防抖，避免逐字符发请求。
+                final long linkId = WikiIdParser.parseArtistId(keyword);
+                pending[0] = () -> {
+                    progress.setVisibility(View.VISIBLE);
+                    empty.setVisibility(View.GONE);
+                    executor.execute(() -> {
+                        AlbumDraft.Artist linked = null;
+                        List<AlbumDraft.Artist> results = null;
+                        String error = null;
+                        try {
+                            if (linkId > 0) {
+                                linked = NetEaseWikiClient.fetchArtist(
+                                        context.getApplicationContext(), linkId, null);
+                                if (linked == null) {
+                                    error = context.getString(R.string.au_artist_link_failed);
+                                }
+                            } else {
+                                results = NetEaseWikiClient.searchArtists(
+                                        context.getApplicationContext(), keyword, null);
+                            }
+                        } catch (Exception e) {
+                            int fallback = linkId > 0
+                                    ? R.string.au_artist_link_failed
+                                    : R.string.au_artist_search_failed;
                             // 异常文案可能是 null，兜底给一句可读提示
-                            Feedback.show(root, TextUtils.isEmpty(e.getMessage())
-                                    ? context.getString(R.string.au_artist_search_failed)
-                                    : e.getMessage());
+                            error = TextUtils.isEmpty(e.getMessage())
+                                    ? context.getString(fallback)
+                                    : e.getMessage();
+                        }
+                        final AlbumDraft.Artist picked = linked;
+                        final List<AlbumDraft.Artist> data = results;
+                        final String message = error;
+                        main.post(() -> {
+                            if (token != seq[0]) {
+                                // 已有更新的输入，丢弃这次结果
+                                return;
+                            }
+                            progress.setVisibility(View.GONE);
+                            if (picked != null) {
+                                // 链接解析成功：直接按解析到的艺人完成选择
+                                if (holder[0] != null) {
+                                    holder[0].dismiss();
+                                }
+                                onPick.onPick(picked);
+                                return;
+                            }
+                            if (data != null) {
+                                empty.setVisibility(View.GONE);
+                                // 与原 APK / 网页版一致：只要用户有输入，就始终保留
+                                // 「直接添加『关键词』」入口，搜索结果显示在其下方。
+                                adapter.submit(data, keyword);
+                            } else {
+                                adapter.submit(new ArrayList<>());
+                                empty.setVisibility(View.VISIBLE);
+                            }
+                            if (message != null) {
+                                Feedback.show(root, message);
+                            }
                         });
-                    }
-                });
+                    });
+                };
+                main.postDelayed(pending[0], 320L);
             }
         });
 
-        dialog.setOnDismissListener(d -> executor.shutdownNow());
+        dialog.setOnDismissListener(d -> {
+            main.removeCallbacksAndMessages(null);
+            executor.shutdownNow();
+        });
     }
 }

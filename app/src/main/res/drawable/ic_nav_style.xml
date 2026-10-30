@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 底栏样式：屏幕边框 + 贴底胶囊 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M5,3H19C19.55,3 20.02,3.2 20.41,3.59C20.8,3.98 21,4.45 21,5V19C21,19.55 20.8,20.02 20.41,20.41C20.02,20.8 19.55,21 19,21H5C4.45,21 3.98,20.8 3.59,20.41C3.2,20.02 3,19.55 3,19V5C3,4.45 3.2,3.98 3.59,3.59C3.98,3.2 4.45,3 5,3ZM5,5V19H19V5H5Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M8.2,13.9H15.8C16.45,13.9 17,14.12 17.45,14.55C17.9,14.98 18.12,15.5 18.12,16.12C18.12,16.74 17.9,17.26 17.45,17.69C17,18.12 16.45,18.34 15.8,18.34H8.2C7.55,18.34 7,18.12 6.55,17.69C6.1,17.26 5.88,16.74 5.88,16.12C5.88,15.5 6.1,14.98 6.55,14.55C7,14.12 7.55,13.9 8.2,13.9Z" />
+</vector>

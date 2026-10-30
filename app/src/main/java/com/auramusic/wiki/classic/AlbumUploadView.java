@@ -156,10 +156,22 @@ public class AlbumUploadView extends FrameLayout {
 
     private UploadListener uploadListener;
     private final Map<Object, Integer> uploadPercents = new LinkedHashMap<>();
-    private static final Object COVER_UPLOAD = new Object();
 
     private AlbumSongAdapter adapter;
     private final List<AlbumDraft.Song> songs = new ArrayList<>();
+    /** 每首歌当前在途的上传任务；替换音频 / 移除曲目时据此撤掉聚合进度并打断旧任务 */
+    private final Map<AlbumDraft.Song, UploadTask> activeUploads =
+            new java.util.IdentityHashMap<>();
+
+    /** 一次上传任务：{@code cancelled} 置位后分块循环会在一个分块内退出。 */
+    private static final class UploadTask {
+        final Object key = new Object();
+        final java.util.concurrent.atomic.AtomicBoolean cancelled =
+                new java.util.concurrent.atomic.AtomicBoolean();
+    }
+
+    /** 导入音频的复制线程：大文件同步复制会卡住主线程，看起来像「点了没反应」 */
+    private final ExecutorService importExecutor = Executors.newSingleThreadExecutor();
     private final List<AlbumDraft.Artist> albumArtists = new ArrayList<>();
     private final List<AlbumDraft.Artist> removedAlbumArtists = new ArrayList<>();
     /** 目标艺人待选：提交成功或手动取消后可一键填回，且必须保留有效 artistId。 */
@@ -191,6 +203,8 @@ public class AlbumUploadView extends FrameLayout {
     private NosUploader.NosFile coverRawNos;
     private NosUploader.NosFile coverSquareNos;
     private boolean coverUploading;
+    /** 封面上传代次：换封面后旧任务的结果与进度回调一律作废 */
+    private int coverToken;
     /** 封面最近一次上传失败的原因；为空表示没有失败。 */
     private String coverError;
     private boolean submitting;
@@ -220,7 +234,7 @@ public class AlbumUploadView extends FrameLayout {
     private ActivityResultLauncher<Intent> cropImage;
     private ActivityResultLauncher<String[]> pickAudio;
     private ActivityResultLauncher<Uri> pickFolder;
-    private ActivityResultLauncher<String> replaceAudioLauncher;
+    private ActivityResultLauncher<String[]> replaceAudioLauncher;
     private AlbumDraft.Song replacingSong;
 
     public AlbumUploadView(Context context) {
@@ -444,9 +458,10 @@ public class AlbumUploadView extends FrameLayout {
                     }
                 });
         replaceAudioLauncher = activity.registerForActivityResult(
-                new ActivityResultContracts.GetContent(), uri -> {
-                    if (uri != null && replacingSong != null) {
-                        replaceAudio(replacingSong, uri);
+                new ActivityResultContracts.OpenMultipleDocuments(), uris -> {
+                    if (uris != null && !uris.isEmpty() && replacingSong != null) {
+                        // 与「添加音频」同一个系统选择器：多选时只认第一首
+                        replaceAudio(replacingSong, uris.get(0));
                     }
                 });
 
@@ -912,8 +927,11 @@ public class AlbumUploadView extends FrameLayout {
                 MotionManager.animateVisibility(getContext(), artistSearchProgress, false);
                 if (artist != null) {
                     onTargetArtistPicked(artist);
-                } else if (message != null) {
-                    toast(message);
+                } else {
+                    // 解析失败不阻断上传：保留用户粘贴的原始输入，允许继续手动填写
+                    toast(message != null
+                            ? message
+                            : getContext().getString(R.string.au_artist_link_failed));
                 }
             });
         });
@@ -1248,30 +1266,40 @@ public class AlbumUploadView extends FrameLayout {
     private void uploadCover() {
         final File raw = coverRawFile;
         final File square = coverSquareFile;
-        beginUploadTask(COVER_UPLOAD);
+        // 每次换封面都是一次新任务：用独立 key + 代次，避免旧任务结束进度条、
+        // 或把上一张封面的 nos 结果写回当前状态
+        final Object coverKey = new Object();
+        final int token = ++coverToken;
+        beginUploadTask(coverKey);
         uploadExecutor.execute(() -> {
             try {
                 NosUploader.NosFile rawNos = raw == null ? null
                         : NosUploader.uploadImage(getContext(), raw, guessMime(raw.getName()),
-                        percent -> postUploadProgress(COVER_UPLOAD, percent / 2));
+                        percent -> postUploadProgress(coverKey, percent / 2));
                 NosUploader.NosFile squareNos = square == null ? null
                         : NosUploader.uploadImage(getContext(), square, "image/jpeg",
-                        percent -> postUploadProgress(COVER_UPLOAD, 50 + percent / 2));
+                        percent -> postUploadProgress(coverKey, 50 + percent / 2));
                 main.post(() -> {
+                    endUploadTask(coverKey);
+                    if (token != coverToken) {
+                        return;
+                    }
                     coverRawNos = rawNos;
                     coverSquareNos = squareNos;
                     coverUploading = false;
                     coverError = null;
                     coverState.setText(R.string.au_cover_uploaded);
-                    endUploadTask(COVER_UPLOAD);
                 });
             } catch (Exception e) {
                 main.post(() -> {
+                    endUploadTask(coverKey);
+                    if (token != coverToken) {
+                        return;
+                    }
                     coverUploading = false;
                     coverError = messageOf(e);
                     coverState.setText(getContext().getString(R.string.au_err_cover_failed,
                             messageOf(e)));
-                    endUploadTask(COVER_UPLOAD);
                 });
             }
         });
@@ -1298,14 +1326,62 @@ public class AlbumUploadView extends FrameLayout {
     // ------------------------------------------------------------------
 
     private void addAudioUris(List<Uri> uris) {
-        for (Uri uri : uris) {
+        if (uris == null || uris.isEmpty()) {
+            return;
+        }
+        // 复制放到后台：大文件同步复制会卡住主线程，用户会以为「点了没反应」再点一次
+        final List<Uri> picked = new ArrayList<>(uris);
+        statusView.setText(getContext().getString(R.string.au_importing, picked.size()));
+        importExecutor.execute(() -> {
+            final List<File> copied = new ArrayList<>();
+            int failed = 0;
+            for (Uri uri : picked) {
+                File file = copyToCacheWithRetry(uri);
+                if (file == null) {
+                    failed++;
+                } else {
+                    copied.add(file);
+                }
+            }
+            final int failedCount = failed;
+            main.post(() -> {
+                for (File file : copied) {
+                    addAudioFile(file);
+                }
+                if (copied.isEmpty()) {
+                    toast(getContext().getString(R.string.au_pick_audio_failed));
+                } else if (failedCount > 0) {
+                    toast(getContext().getString(R.string.au_import_partial, failedCount));
+                }
+                statusView.setText(R.string.au_submit_hint);
+            });
+        });
+    }
+
+    /**
+     * 复制单个选中的音频，失败重试一次。
+     *
+     * <p>部分 provider 在 picker 返回后的一瞬间还读不到流，直接失败会让用户
+     * 以为「添加没反应」，需要再操作一次。
+     */
+    @Nullable
+    private File copyToCacheWithRetry(Uri uri) {
+        for (int attempt = 0; attempt < 2; attempt++) {
             try {
-                File file = copyToCache(uri, "upload-audio", guessAudioExt(uri));
-                addAudioFile(file);
+                return copyToCache(uri, "upload-audio", guessAudioExt(uri));
             } catch (Exception e) {
-                toast(getContext().getString(R.string.au_pick_audio_failed));
+                if (attempt > 0) {
+                    return null;
+                }
+                try {
+                    Thread.sleep(150L);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    return null;
+                }
             }
         }
+        return null;
     }
 
     private void addAudioFile(File file) {
@@ -1456,46 +1532,128 @@ public class AlbumUploadView extends FrameLayout {
     }
 
     private void uploadSong(final AlbumDraft.Song song) {
+        // 已有任务在跑（典型场景：替换正在上传的音频）：立刻置位取消，旧任务会在
+        // 一个分块内退出，再由 finishUpload 用当前文件重新上传，不会并行也不会干等
+        UploadTask running = activeUploads.get(song);
+        if (running != null) {
+            song.uploadToken++;
+            song.pendingUpload = true;
+            song.uploadStage = AlbumDraft.STAGE_QUEUED;
+            song.uploadPercent = 0;
+            song.uploadError = null;
+            // 先打断旧任务，再撤掉它的聚合进度；它后续的进度回调也会因代次不符被忽略
+            running.cancelled.set(true);
+            endUploadTask(running.key);
+            adapter.refreshSong(song);
+            return;
+        }
         // 一入队就标记「排队中」：批量导入时只有 4 条能立刻占用线程，
         // 其余必须让用户看到是在排队，而不是毫无反应地停在 0%
+        final int token = ++song.uploadToken;
+        final UploadTask task = new UploadTask();
         song.uploadStage = AlbumDraft.STAGE_QUEUED;
         song.uploadPercent = 0;
         song.uploadError = null;
         adapter.refreshSong(song);
-        beginUploadTask(song);
+        activeUploads.put(song, task);
+        beginUploadTask(task.key);
         uploadExecutor.execute(() -> {
+            // 任务可能在替换 / 移除之后才轮到线程：先固定本次要传的文件
+            final File file = song.file;
+            if (file == null || token != song.uploadToken || task.cancelled.get()) {
+                main.post(() -> finishUpload(song, task, token));
+                return;
+            }
             main.post(() -> {
+                if (token != song.uploadToken) {
+                    return;
+                }
                 if (song.uploadStage == AlbumDraft.STAGE_QUEUED) {
                     song.uploadStage = AlbumDraft.STAGE_PREPARING;
                     adapter.refreshSong(song);
                 }
             });
             try {
-                NosUploader.NosFile nos = NosUploader.uploadAudio(getContext(), song.file,
+                NosUploader.NosFile nos = NosUploader.uploadAudio(getContext(), file,
                         song.mime, percent -> main.post(() -> {
+                            if (token != song.uploadToken) {
+                                return;
+                            }
                             song.uploadStage = AlbumDraft.STAGE_UPLOADING;
                             song.uploadPercent = percent;
                             adapter.refreshSong(song);
-                            updateUploadProgress(song, percent);
-                        }));
+                            updateUploadProgress(task.key, percent);
+                        }), task.cancelled);
                 main.post(() -> {
-                    song.nosFile = nos;
-                    song.uploadStage = AlbumDraft.STAGE_IDLE;
-                    song.uploadPercent = 100;
-                    song.uploadError = null;
-                    adapter.refreshSong(song);
-                    updateSongsEmpty();
-                    endUploadTask(song);
+                    // 已被替换 / 移除：结果作废，不能覆盖新音频的上传状态
+                    if (token == song.uploadToken) {
+                        song.nosFile = nos;
+                        song.uploadStage = AlbumDraft.STAGE_IDLE;
+                        song.uploadPercent = 100;
+                        song.uploadError = null;
+                        adapter.refreshSong(song);
+                        updateSongsEmpty();
+                    }
+                    finishUpload(song, task, token);
                 });
             } catch (Exception e) {
                 main.post(() -> {
-                    song.uploadStage = AlbumDraft.STAGE_IDLE;
-                    song.uploadError = messageOf(e);
-                    adapter.refreshSong(song);
-                    endUploadTask(song);
+                    if (token == song.uploadToken) {
+                        song.uploadStage = AlbumDraft.STAGE_IDLE;
+                        song.uploadError = messageOf(e);
+                        adapter.refreshSong(song);
+                    }
+                    finishUpload(song, task, token);
                 });
             }
         });
+    }
+
+    /**
+     * 撤掉一首歌当前在途的上传。
+     *
+     * <p>先置位 {@code cancelled} 让旧任务在一个分块内退出（否则新上传要等它把整首歌传完），
+     * 代次（{@code uploadToken}）保证它残余的回调作废；旧缓存文件等任务退出后再删。
+     */
+    private void cancelUpload(AlbumDraft.Song song) {
+        song.uploadToken++;
+        song.pendingUpload = false;
+        song.uploadStage = AlbumDraft.STAGE_IDLE;
+        song.uploadPercent = 0;
+        song.uploadError = null;
+        UploadTask task = activeUploads.remove(song);
+        File pending = song.recycleFile;
+        song.recycleFile = null;
+        if (task != null) {
+            task.cancelled.set(true);
+            // 任务还在读这个文件，交给它退出时删除
+            song.recycleFile = song.file;
+            endUploadTask(task.key);
+        } else {
+            deleteCachedCopy(song.file);
+        }
+        if (pending != null && pending != song.recycleFile) {
+            deleteCachedCopy(pending);
+        }
+    }
+
+    /** 收尾：撤掉本次任务的聚合进度，并处理替换 / 移除时挂起的旧文件与排队中的新上传。 */
+    private void finishUpload(AlbumDraft.Song song, UploadTask task, int token) {
+        endUploadTask(task.key);
+        if (activeUploads.get(song) == task) {
+            activeUploads.remove(song);
+        }
+        if (token == song.uploadToken) {
+            return;
+        }
+        File recycle = song.recycleFile;
+        song.recycleFile = null;
+        deleteCachedCopy(recycle);
+        // 替换音频时排下的新一轮上传：旧任务已退出，现在立刻开始
+        if (song.pendingUpload) {
+            song.pendingUpload = false;
+            uploadSong(song);
+        }
     }
 
     private void renumber() {
@@ -1686,8 +1844,9 @@ public class AlbumUploadView extends FrameLayout {
                                     songs.remove(index);
                                     adapter.notifyItemRemoved(index);
                                     renumber();
-                                    // 移除曲目后本页复制的临时缓存不再需要，及时释放
-                                    deleteCachedCopy(song.file);
+                                    // 正在上传的也要立刻退出上传态：作废旧任务，
+                                    // 缓存文件等它退出后再删，避免边传边删
+                                    cancelUpload(song);
                                 }
                                 updateSongsEmpty();
                                 dialog.dismiss();
@@ -1719,7 +1878,7 @@ public class AlbumUploadView extends FrameLayout {
         root.findViewById(R.id.btn_song_replace_audio).setOnClickListener(v -> {
             replacingSong = song;
             dialog.dismiss();
-            replaceAudioLauncher.launch("audio/*");
+            replaceAudioLauncher.launch(new String[]{"audio/*"});
         });
         // 移除艺人后自动回到候选首位（由 renderArtistChips 的移除回调维护）
         dialog.show();
@@ -1729,13 +1888,26 @@ public class AlbumUploadView extends FrameLayout {
         try {
             File file = copyToCache(uri, "upload-audio", guessAudioExt(uri));
             File previous = song.file;
+            boolean inFlight = activeUploads.containsKey(song);
             song.file = file;
             song.mime = guessMime(file.getName());
             song.nosFile = null;
             song.uploadError = null;
-            // 换音频不覆盖用户已经确认的歌名
-            song.nameEdited = true;
-            deleteCachedCopy(previous);
+            // 换音频后按新文件更名：旧名字属于旧音频，之前强制保留会出现「替换后不更名」
+            song.name = AlbumDraft.cleanSongName(stripExt(file.getName()));
+            song.nameEdited = false;
+            if (inFlight) {
+                // 旧任务还在读旧文件：等它退出后再删，期间也不会重复占带宽
+                File pending = song.recycleFile;
+                if (pending != null && pending != previous) {
+                    deleteCachedCopy(pending);
+                }
+                song.recycleFile = previous;
+            } else {
+                deleteCachedCopy(previous);
+            }
+            adapter.refreshSong(song);
+            resolveSongName(song);
             uploadSong(song);
         } catch (Exception e) {
             toast(getContext().getString(R.string.au_pick_audio_failed));

@@ -11,9 +11,7 @@ import android.widget.ImageView;
 
 import androidx.annotation.Nullable;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
@@ -70,7 +68,17 @@ public final class CoverLoader {
             ".126.net"
     };
 
-    private static final int MAX_BITMAP_BYTES = 4 * 1024 * 1024;
+    /**
+     * 单张图片允许下载的上限。
+     *
+     * <p>这里只拦截明显异常的响应（例如被错误地当成图片返回的大文件），
+     * 不再用「4MB」这种体积阈值直接判失败：不少封面原图（尤其是聚合接口
+     * 直接给出的原图）体积就超过 4MB，按体积拒绝会让整张卡片一直停在占位图。
+     * 真正的内存控制交给按目标尺寸采样解码。
+     */
+    private static final int MAX_DOWNLOAD_BYTES = 24 * 1024 * 1024;
+    /** 超过该体积的图片照常解码上屏，但不进入磁盘缓存，避免把缓存挤爆 */
+    private static final int MAX_DISK_ENTRY_BYTES = 8 * 1024 * 1024;
     /** 磁盘缓存目录名与容量上限 */
     private static final String DISK_DIR_NAME = "cover-cache";
     private static final long MAX_DISK_BYTES = 32L * 1024 * 1024;
@@ -135,17 +143,31 @@ public final class CoverLoader {
         return instance;
     }
 
-    /** 域名白名单校验 */
+    /** 域名白名单校验：按 URL 解析出的 host 精确比对，只允许 HTTPS。 */
     public static boolean isAllowed(String url) {
         if (url == null) {
             return false;
         }
         String lower = url.trim().toLowerCase(Locale.ROOT);
-        if (!lower.startsWith("https://") && !lower.startsWith("http://")) {
+        if (!lower.startsWith("https://")) {
+            return false;
+        }
+        String host;
+        try {
+            host = java.net.URI.create(lower).getHost();
+        } catch (Exception e) {
+            return false;
+        }
+        if (host == null || host.isEmpty()) {
             return false;
         }
         for (String suffix : ALLOWED_HOST_SUFFIX) {
-            if (lower.contains(suffix)) {
+            if (suffix.startsWith(".")) {
+                String bare = suffix.substring(1);
+                if (host.equals(bare) || host.endsWith(suffix)) {
+                    return true;
+                }
+            } else if (host.equals(suffix)) {
                 return true;
             }
         }
@@ -172,6 +194,23 @@ public final class CoverLoader {
     }
 
     /**
+     * http 地址统一升级到 https。
+     *
+     * <p>白名单只放行 https，绝不发起明文请求；但部分旧接口仍会返回 http 的 CDN 链接，
+     * 直接拒绝会让这些封面变成空白，因此在校验前先升级协议。
+     */
+    private static String httpsize(String url) {
+        if (url == null) {
+            return null;
+        }
+        String trimmed = url.trim();
+        if (trimmed.regionMatches(true, 0, "http://", 0, 7)) {
+            return "https://" + trimmed.substring(7);
+        }
+        return trimmed;
+    }
+
+    /**
      * 异步加载图片到 ImageView，并回报读取是否成功。
      *
      * @param callback 读取结果回调，可为 null；无论命中缓存、下载失败还是域名被拒都会回调一次
@@ -181,17 +220,18 @@ public final class CoverLoader {
         if (view == null) {
             return;
         }
-        if (!isAllowed(url)) {
+        final String safeUrl = httpsize(url);
+        if (!isAllowed(safeUrl)) {
             view.setTag(null);
             view.setImageDrawable(null);
             dispatch(callback, false);
             return;
         }
 
-        final String memKey = memoryKey(url, target);
-        // tag 用原始 URL：换页复用时只需比对 URL 即可判断结果是否已过期
-        final boolean sameUrl = url.equals(view.getTag());
-        view.setTag(url);
+        final String memKey = memoryKey(safeUrl, target);
+        // tag 用（升级后的）URL：换页复用时只需比对 URL 即可判断结果是否已过期
+        final boolean sameUrl = safeUrl.equals(view.getTag());
+        view.setTag(safeUrl);
 
         Bitmap cached = memoryCache.get(memKey);
         if (cached != null && !cached.isRecycled()) {
@@ -221,7 +261,7 @@ public final class CoverLoader {
         }
         if (lead) {
             final Inflight task = job;
-            executor.execute(() -> decodeInto(memKey, url, target, task));
+            executor.execute(() -> decodeInto(memKey, safeUrl, target, task));
         }
     }
 
@@ -235,7 +275,8 @@ public final class CoverLoader {
         if (urls == null || urls.isEmpty()) {
             return;
         }
-        for (final String url : urls) {
+        for (final String raw : urls) {
+            final String url = httpsize(raw);
             if (!isAllowed(url)) {
                 continue;
             }
@@ -312,17 +353,60 @@ public final class CoverLoader {
     // 三级缓存读取
     // ------------------------------------------------------------------
 
-    /** 磁盘 → 网络 → 解码，返回可直接上屏的位图 */
+    /**
+     * 磁盘 → 网络 → 采样解码，返回可直接上屏的位图。
+     *
+     * <p>全程按文件流处理：下载直接落临时文件、解码用
+     * {@link BitmapFactory#decodeFile(String, BitmapFactory.Options)} 两次读取（先取尺寸，
+     * 再按采样率解码），因此大体积原图也不会被整块读进内存。
+     */
     @Nullable
     private Bitmap loadBitmap(String url, int target) {
-        byte[] data = readDisk(url);
-        if (data == null) {
-            data = fetch(url, target);
-            if (data != null) {
-                writeDisk(url, data);
+        File cached = diskFile(url, target);
+        if (cached != null) {
+            Bitmap bitmap = decodeFile(cached, target);
+            if (bitmap != null) {
+                // 触达时间即 LRU 顺序
+                cached.setLastModified(System.currentTimeMillis());
+                return bitmap;
             }
+            // 缓存文件损坏 / 格式变化：删掉后重新下载
+            cached.delete();
         }
-        return decode(data, target);
+        File temp = download(url, target);
+        if (temp == null) {
+            return null;
+        }
+        Bitmap bitmap = decodeFile(temp, target);
+        if (bitmap == null) {
+            temp.delete();
+            return null;
+        }
+        keepInDiskCache(url, target, temp);
+        return bitmap;
+    }
+
+    /** 下载结果落盘：体积正常的转为正式缓存文件，过大的解码后直接丢弃临时文件。 */
+    private void keepInDiskCache(String url, int target, File temp) {
+        try {
+            if (temp.length() <= 0 || temp.length() > MAX_DISK_ENTRY_BYTES) {
+                temp.delete();
+                return;
+            }
+            File dir = diskCacheDir();
+            if (dir == null) {
+                temp.delete();
+                return;
+            }
+            File targetFile = new File(dir, diskKey(url, target));
+            if (temp.renameTo(targetFile)) {
+                trimDiskIfNeeded();
+            } else {
+                temp.delete();
+            }
+        } catch (Exception e) {
+            temp.delete();
+        }
     }
 
     /**
@@ -347,29 +431,72 @@ public final class CoverLoader {
     // 网络
     // ------------------------------------------------------------------
 
+    /**
+     * 下载图片到临时文件。
+     *
+     * <p>边读边写，不在内存里拼接完整响应体；超过 {@link #MAX_DOWNLOAD_BYTES} 视为异常响应，
+     * 停止下载并删除临时文件。失败返回 {@code null}。
+     */
     @Nullable
-    private byte[] fetch(String url, int target) {
+    private File download(String url, int target) {
         String requestUrl = withCdnSize(url, target);
+        File temp = newTempFile();
+        if (temp == null) {
+            return null;
+        }
         HttpURLConnection conn = null;
         try {
             conn = (HttpURLConnection) new URL(requestUrl).openConnection();
             conn.setConnectTimeout(8000);
-            conn.setReadTimeout(10000);
-            conn.setRequestProperty("User-Agent", "WikiUploader/1.1.2 (Android; PublicWiki)");
+            conn.setReadTimeout(15000);
+            conn.setRequestProperty("User-Agent", "WikiUploader/1.2.2 (Android; PublicWiki)");
             conn.setRequestProperty("Accept", Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
                     ? ACCEPT_IMAGE_AVIF : ACCEPT_IMAGE_WEBP);
             if (conn.getResponseCode() != 200) {
+                temp.delete();
                 return null;
             }
-            try (InputStream is = conn.getInputStream()) {
-                return readAll(is);
+            long total = 0L;
+            try (InputStream is = conn.getInputStream();
+                 FileOutputStream out = new FileOutputStream(temp)) {
+                byte[] buf = new byte[16384];
+                int len;
+                while ((len = is.read(buf)) != -1) {
+                    total += len;
+                    if (total > MAX_DOWNLOAD_BYTES) {
+                        android.util.Log.w(TAG, "图片响应超过上限，已放弃：" + url);
+                        break;
+                    }
+                    out.write(buf, 0, len);
+                }
             }
+            if (total <= 0 || total > MAX_DOWNLOAD_BYTES) {
+                temp.delete();
+                return null;
+            }
+            return temp;
         } catch (Exception e) {
+            temp.delete();
             return null;
         } finally {
             if (conn != null) {
                 conn.disconnect();
             }
+        }
+    }
+
+    /** 图片临时文件：优先放在封面缓存目录，未注入上下文时退回系统临时目录。 */
+    @Nullable
+    private File newTempFile() {
+        try {
+            File dir = diskCacheDir();
+            if (dir == null) {
+                Context context = appContext;
+                dir = context == null ? null : context.getCacheDir();
+            }
+            return File.createTempFile("cover-", ".tmp", dir);
+        } catch (Exception e) {
+            return null;
         }
     }
 
@@ -383,13 +510,20 @@ public final class CoverLoader {
         if (target <= 0 || url == null || url.indexOf('?') >= 0) {
             return url;
         }
-        String lower = url.toLowerCase(Locale.ROOT);
         boolean cdn = false;
-        for (String suffix : CDN_RESIZE_SUFFIX) {
-            if (lower.contains(suffix)) {
-                cdn = true;
-                break;
+        try {
+            String host = java.net.URI.create(url.trim().toLowerCase(Locale.ROOT)).getHost();
+            if (host != null) {
+                for (String suffix : CDN_RESIZE_SUFFIX) {
+                    String bare = suffix.startsWith(".") ? suffix.substring(1) : suffix;
+                    if (host.equals(bare) || (suffix.startsWith(".") && host.endsWith(suffix))) {
+                        cdn = true;
+                        break;
+                    }
+                }
             }
+        } catch (Exception e) {
+            return url;
         }
         if (!cdn) {
             return url;
@@ -397,43 +531,59 @@ public final class CoverLoader {
         return url + "?param=" + target + "y" + target;
     }
 
-    private static byte[] readAll(InputStream is) throws Exception {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        byte[] buf = new byte[8192];
-        int total = 0;
-        int len;
-        while ((len = is.read(buf)) != -1) {
-            total += len;
-            if (total > MAX_BITMAP_BYTES) {
-                throw new IllegalStateException("图片过大");
-            }
-            out.write(buf, 0, len);
+    /**
+     * 从文件采样解码。
+     *
+     * <p>先只读尺寸，再按目标边长选采样率解码，因此原图再大也只解出接近列表尺寸的位图；
+     * 采样后仍 OOM 时再降一档重试一次。
+     */
+    @Nullable
+    private static Bitmap decodeFile(File file, int target) {
+        if (file == null || !file.isFile() || file.length() <= 0) {
+            return null;
         }
-        return out.toByteArray();
+        try {
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                return null;
+            }
+            int sample = sampleSizeFor(bounds.outWidth, bounds.outHeight, target);
+            try {
+                return decodeFileWithSample(file, sample);
+            } catch (OutOfMemoryError first) {
+                android.util.Log.w(TAG, "封面解码内存不足，降采样重试：" + file.getName());
+                try {
+                    return decodeFileWithSample(file, Math.min(sample * 2, 64));
+                } catch (OutOfMemoryError | Exception ignored) {
+                    return null;
+                }
+            }
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Nullable
-    private static Bitmap decode(@Nullable byte[] data, int target) {
-        if (data == null || data.length == 0) {
-            return null;
-        }
-        BitmapFactory.Options bounds = new BitmapFactory.Options();
-        bounds.inJustDecodeBounds = true;
-        BitmapFactory.decodeByteArray(data, 0, data.length, bounds);
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-            return null;
-        }
+    private static Bitmap decodeFileWithSample(File file, int sample) {
         BitmapFactory.Options opts = new BitmapFactory.Options();
-        opts.inSampleSize = computeSampleSize(bounds, target);
-        return BitmapFactory.decodeByteArray(data, 0, data.length, opts);
+        opts.inSampleSize = Math.max(1, sample);
+        return BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
     }
 
-    private static int computeSampleSize(BitmapFactory.Options bounds, int target) {
-        int sample = 1;
-        if (target <= 0) {
+    /**
+     * 按目标边长计算采样率（2 的幂）。
+     *
+     * <p>包内可见以便单测固化策略：目标未知（{@code <= 0}）时不采样；
+     * 允许解码结果略大于目标（两倍以内），避免过度模糊。</p>
+     */
+    static int sampleSizeFor(int width, int height, int target) {
+        if (target <= 0 || width <= 0 || height <= 0) {
             return 1;
         }
-        int maxSide = Math.max(bounds.outWidth, bounds.outHeight);
+        int maxSide = Math.max(width, height);
+        int sample = 1;
         while (maxSide / sample > target * 2) {
             sample *= 2;
         }
@@ -471,70 +621,30 @@ public final class CoverLoader {
         }
     }
 
-    /** 用 URL 的哈希 + 长度做文件名，避免非法字符与同名冲突 */
-    private static String diskKey(String url) {
-        return Integer.toHexString(url.hashCode()) + "-" + url.length() + ".img";
+    /**
+     * 磁盘缓存键：URL 的哈希 + 长度 + 目标边长。
+     *
+     * <p>目标边长必须参与：CDN 会按 {@code ?param=N y N} 返回不同分辨率的图，
+     * 若只按原始 URL 落盘，先来的小图会长期挡住之后的高清请求。
+     */
+    static String diskKey(String url, int target) {
+        String base = url + "@" + Math.max(0, target);
+        return Integer.toHexString(base.hashCode()) + "-" + url.length() + "-"
+                + Math.max(0, target) + ".img";
     }
 
+    /** 磁盘缓存文件（不存在时返回 null）。 */
     @Nullable
-    private byte[] readDisk(String url) {
+    private File diskFile(String url, int target) {
         File dir = diskCacheDir();
         if (dir == null) {
             return null;
         }
-        File file = new File(dir, diskKey(url));
-        if (!file.isFile()) {
+        File file = new File(dir, diskKey(url, target));
+        if (!file.isFile() || file.length() <= 0) {
             return null;
         }
-        long length = file.length();
-        if (length <= 0 || length > MAX_BITMAP_BYTES) {
-            // 残缺或超限的缓存直接丢弃
-            file.delete();
-            return null;
-        }
-        try (FileInputStream in = new FileInputStream(file)) {
-            byte[] data = new byte[(int) length];
-            int read = 0;
-            while (read < data.length) {
-                int n = in.read(data, read, data.length - read);
-                if (n < 0) {
-                    break;
-                }
-                read += n;
-            }
-            if (read < data.length) {
-                file.delete();
-                return null;
-            }
-            // 触达时间即 LRU 顺序
-            file.setLastModified(System.currentTimeMillis());
-            return data;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private void writeDisk(String url, byte[] data) {
-        File dir = diskCacheDir();
-        if (dir == null || data == null || data.length == 0) {
-            return;
-        }
-        File target = new File(dir, diskKey(url));
-        File temp = new File(dir, target.getName() + ".tmp");
-        try {
-            try (FileOutputStream out = new FileOutputStream(temp)) {
-                out.write(data);
-            }
-        } catch (Exception e) {
-            temp.delete();
-            return;
-        }
-        if (!temp.renameTo(target)) {
-            // 并发写入时目标可能已存在，直接丢弃临时文件
-            temp.delete();
-            return;
-        }
-        trimDiskIfNeeded();
+        return file;
     }
 
     /** 磁盘占用超过上限时，按最后访问时间淘汰到约 3/4 水位 */

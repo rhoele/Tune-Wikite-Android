@@ -23,7 +23,8 @@ public class CoverLoaderTest {
     @Test
     public void allowsNeteaseCdn() {
         assertTrue(CoverLoader.isAllowed("https://p1.music.126.net/abc.jpg"));
-        assertTrue(CoverLoader.isAllowed("http://p2.music.126.net/abc.jpg"));
+        assertTrue(CoverLoader.isAllowed("https://music.126.net/abc.jpg"));
+        assertTrue(CoverLoader.isAllowed("https://p2.music.126.net/abc.jpg"));
     }
 
     @Test
@@ -38,8 +39,27 @@ public class CoverLoaderTest {
         assertFalse(CoverLoader.isAllowed("https://example.com/a.jpg"));
         // 缺少协议头
         assertFalse(CoverLoader.isAllowed("p1.music.126.net/a.jpg"));
-        // 大小写不敏感，但协议必须是 http(s)
+        // 大小写不敏感，但协议必须是 https
         assertFalse(CoverLoader.isAllowed("ftp://p1.music.126.net/a.jpg"));
+        assertFalse(CoverLoader.isAllowed("http://p2.music.126.net/abc.jpg"));
+    }
+
+    /** 白名单必须按 host 判定：路径 / 查询串 / 伪后缀里出现白名单域名都不算 */
+    @Test
+    public void rejectsSpoofedHost() {
+        assertFalse(CoverLoader.isAllowed("https://evil.example/music.126.net/a.jpg"));
+        assertFalse(CoverLoader.isAllowed("https://music.126.net.evil.example/a.jpg"));
+        assertFalse(CoverLoader.isAllowed("https://evil.example/?u=https://p1.music.126.net/a.jpg"));
+        assertFalse(CoverLoader.isAllowed("https://xne.cdgz.top/a.jpg"));
+        assertFalse(CoverLoader.isAllowed("https://ne.cdgz.top.evil.example/a.jpg"));
+    }
+
+    /** 磁盘缓存键必须区分目标边长，避免小图挡住之后的高清请求 */
+    @Test
+    public void diskKeySeparatesTargetSize() {
+        String url = "https://p1.music.126.net/abc.jpg";
+        assertFalse(CoverLoader.diskKey(url, 200).equals(CoverLoader.diskKey(url, 600)));
+        assertEquals(CoverLoader.diskKey(url, 200), CoverLoader.diskKey(url, 200));
     }
 
     // ---------------------- CDN 尺寸参数 ----------------------
@@ -69,5 +89,32 @@ public class CoverLoaderTest {
     public void skipsNonCdnHost() {
         String url = "https://ne.cdgz.top/cover/abc.png";
         assertEquals(url, CoverLoader.withCdnSize(url, 200));
+    }
+
+    // ---------------------- 采样率 ----------------------
+
+    @Test
+    public void samplesLargeImageDownToTarget() {
+        // 3000px 原图、目标 200px：允许两倍以内，采样到 8（375px）
+        assertEquals(8, CoverLoader.sampleSizeFor(3000, 3000, 200));
+        // 长宽不等时按长边计算
+        assertEquals(8, CoverLoader.sampleSizeFor(3000, 1200, 200));
+    }
+
+    @Test
+    public void keepsSmallImageUnsampled() {
+        assertEquals(1, CoverLoader.sampleSizeFor(240, 240, 200));
+        assertEquals(1, CoverLoader.sampleSizeFor(0, 0, 200));
+        // 目标未知时不采样
+        assertEquals(1, CoverLoader.sampleSizeFor(3000, 3000, 0));
+        assertEquals(1, CoverLoader.sampleSizeFor(3000, 3000, -1));
+    }
+
+    /** 超大原图必须给出足够大的采样率，避免解码时撑爆堆内存 */
+    @Test
+    public void samplesVeryLargeImageAggressively() {
+        int sample = CoverLoader.sampleSizeFor(12000, 8000, 200);
+        assertEquals(32, sample);
+        assertTrue(12000 / sample <= 200 * 2);
     }
 }

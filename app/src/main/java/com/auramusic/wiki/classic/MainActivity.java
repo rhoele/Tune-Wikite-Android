@@ -24,9 +24,11 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
+import android.view.ViewTreeObserver;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.RadioGroup;
@@ -62,6 +64,7 @@ import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.google.android.material.radiobutton.MaterialRadioButton;
 import com.google.android.material.shape.MaterialShapeDrawable;
 import com.google.android.material.shape.ShapeAppearanceModel;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -362,6 +365,70 @@ public class MainActivity extends BaseActivity {
      * 使点击任意交互按钮（分类、状态、通道、分页…）后仍停留在原位置。
      */
     private int pendingScrollY = -1;
+    /**
+     * 离开「我的贡献」前记住的滚动位置。
+     *
+     * <p>切换底部导航不该丢掉阅读位置：回来时恢复到离开处（页码本身不重置），
+     * 只有切分类 / 切状态 / 翻页 / 下拉刷新这些「换数据源」的操作才回顶。
+     */
+    private int contribScrollMemory = -1;
+
+    // ------------------------------------------------------------------
+    // 「我的贡献」滚动显隐（分类吸顶 / 状态标签与底栏隐藏）
+    // ------------------------------------------------------------------
+
+    /** 向下累计多少 dp 触发隐藏；向上累计多少 dp 触发恢复 */
+    private static final int CHROME_HIDE_DP = 96;
+    /**
+     * 恢复阈值不能太小：惯性回弹、手指抖动都会产生十几 dp 的反向位移，
+     * 阈值过小会让底栏在浏览过程中被反复顶回来。
+     */
+    private static final int CHROME_SHOW_DP = 48;
+
+    /**
+     * 审核状态标签的显隐阈值（吸顶后才生效）：下滑 {@code CHIPS_HIDE} dp 收起，
+     * 上滑 {@code CHIPS_SHOW} dp 恢复。恢复距离比隐藏短，避免要滚回很远才看得见筛选。
+     */
+    private static final int CHIPS_HIDE_DP = 72;
+    private static final int CHIPS_SHOW_DP = 32;
+
+    /** 方向判定状态机；每次滚动采样都会更新 */
+    private ScrollChromeState scrollChrome;
+    /** 审核状态标签所在的横向滚动容器（吸顶时需要它自身的高度与背景） */
+    private HorizontalScrollView chipStatusScroll;
+    /** 审核状态标签当前的滑动位移（完全收起时等于自身高度的负值） */
+    private float chipsHideOffset;
+    /** 状态标签收起进度：0 = 完全展开，1 = 完全收起（由动画驱动） */
+    private float chipsProgress;
+    /** 状态标签收起动画的目标值，用于避免重复启动同一目标的动画 */
+    private float chipsTarget;
+    private ValueAnimator chipsAnimator;
+    /** 状态标签行是否已铺上吸顶底色（避免滚动时每帧重复设置背景） */
+    private boolean chipsSurfacePainted;
+    /** 最近一次滚动容器的 scrollY，布局变化后重新套用吸顶位置时使用 */
+    private int lastContribScrollY;
+    /** 分类标签当前是否处于吸顶状态（布局变化后与之比对，避免抖动误判） */
+    private boolean contribPinned;
+    /** 布局变化后重新套用吸顶位置的监听器（销毁时移除） */
+    private ViewTreeObserver.OnGlobalLayoutListener contribLayoutListener;
+    /** 底栏是否被滚动隐藏（true 表示已隐藏） */
+    private boolean navChromeHidden;
+    /** 隐藏底栏时需要平移的高度（底栏高度 + 下外边距），首次隐藏时实测 */
+    private int navChromeShift;
+    /**
+     * 页面选择器下圆角的当前半径（px）。
+     *
+     * <p>与底栏合并时下圆角为 0（两块表面拼成一整条），底栏随滚动隐藏后
+     * 补间到胶囊半径，页面选择器变成单行圆角胶囊，投影也随之收到它自己身上。
+     */
+    private float pagerBottomCornerPx;
+    private ValueAnimator pagerCornerAnimator;
+    /** 覆盖层的布局参数刚被改过，读高度前需要同步量一次 */
+    private boolean overlayGeometryDirty;
+    /** 玻璃层高度的补间（底栏滑出 / 滑回时与位移同步） */
+    private ValueAnimator blurAnimator;
+    /** 玻璃层顶部裁掉的像素：底栏收起后藏起多出来的那一条（不改高度，避免重采样） */
+    private int blurTopInset;
 
     /** 登录页返回即重新拉取贡献记录，避免用户手动切页 */
     private final ActivityResultLauncher<Intent> loginLauncher = registerForActivityResult(
@@ -444,6 +511,9 @@ public class MainActivity extends BaseActivity {
             switchDestination(destinationForMenu(itemId));
             return true;
         });
+
+        // 默认外观改过：对已经存过外观偏好的老用户提示一次，避免以为设置被重置
+        bottomOverlay.post(this::maybeShowAppearanceNotice);
 
         requestNotificationPermission();
         AuditPollingService.startIfEnabled(this);
@@ -1229,6 +1299,28 @@ public class MainActivity extends BaseActivity {
         statsGeneration++;
         cancelInflight();
         WikiPrefs.get(this).unregisterOnSharedPreferenceChangeListener(displayPrefListener);
+        if (contribLayoutListener != null && contribScroll != null) {
+            contribScroll.getViewTreeObserver().removeOnGlobalLayoutListener(contribLayoutListener);
+            contribLayoutListener = null;
+        }
+        if (navShell != null) {
+            navShell.animate().cancel();
+        }
+        if (pagerCornerAnimator != null) {
+            pagerCornerAnimator.cancel();
+            pagerCornerAnimator = null;
+        }
+        if (chipsAnimator != null) {
+            chipsAnimator.cancel();
+            chipsAnimator = null;
+        }
+        if (blurAnimator != null) {
+            blurAnimator.cancel();
+            blurAnimator = null;
+        }
+        if (pagerBar != null) {
+            pagerBar.animate().cancel();
+        }
         wikiView.dispose();
         super.onDestroy();
     }
@@ -1426,7 +1518,7 @@ public class MainActivity extends BaseActivity {
                     overlayBottomInset = ime;
                     applyContentBottomInset();
                 }
-                view.setTranslationY(-ime);
+                view.setTranslationY(-imeOffset(ime));
                 requestOverlayBlurUpdate();
                 return windowInsets;
             });
@@ -1439,7 +1531,7 @@ public class MainActivity extends BaseActivity {
                         @Override
                         public WindowInsetsCompat onProgress(@NonNull WindowInsetsCompat insets,
                                                              @NonNull List<WindowInsetsAnimationCompat> running) {
-                            bottomOverlay.setTranslationY(-imeBottomInset(insets));
+                            bottomOverlay.setTranslationY(-imeOffset(imeBottomInset(insets)));
                             requestOverlayBlurUpdate();
                             return insets;
                         }
@@ -1465,7 +1557,7 @@ public class MainActivity extends BaseActivity {
         if (overlayContent == null) {
             return;
         }
-        int contentHeight = overlayContent.getHeight();
+        int contentHeight = overlayContentHeight();
         if (contentHeight > 0 && contentHeight != overlayHeight) {
             overlayHeight = contentHeight;
             applyContentBottomInset();
@@ -1479,7 +1571,7 @@ public class MainActivity extends BaseActivity {
         if (navShell != null && navShell.getLayoutParams() instanceof ViewGroup.MarginLayoutParams) {
             bottomGap = ((ViewGroup.MarginLayoutParams) navShell.getLayoutParams()).bottomMargin;
         }
-        int blurHeight = Math.max(0, contentHeight - bottomGap);
+        int blurHeight = Math.max(0, contentHeight - bottomGap + blurHiddenNavHeight());
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) overlayBlur.getLayoutParams();
         boolean changed = false;
         if (lp.gravity != Gravity.BOTTOM) {
@@ -1493,6 +1585,95 @@ public class MainActivity extends BaseActivity {
         if (changed) {
             overlayBlur.setLayoutParams(lp);
         }
+        // 没有补间在跑时，裁剪量必须与「底栏是否已完全收起」严格一致，
+        // 否则玻璃层会多出或少掉一条底栏高度的带
+        if (blurAnimator == null || !blurAnimator.isRunning()) {
+            blurTopInset = blurHiddenNavHeight();
+        }
+        overlayBlur.setTopInsetPx(blurTopInset);
+    }
+
+    /**
+     * 底栏已完全收起时玻璃层要多出来的高度（px）。
+     *
+     * <p>保持「玻璃层高度恒定」：底栏收起后覆盖层布局矮了底栏那么多，这里补回去，
+     * 玻璃层就不需要改尺寸 —— 改尺寸会重新分配采样位图，动画期间每帧重建会闪。
+     * 视觉上多出来的那一条由 {@link #blurTopInset} 裁掉。
+     */
+    private int blurHiddenNavHeight() {
+        if (navShell == null || navShell.getVisibility() != View.GONE) {
+            return 0;
+        }
+        return Math.max(0, navShell.getHeight());
+    }
+
+    /**
+     * 玻璃层顶部裁掉的像素：与底栏的滑出 / 滑回同步。
+     *
+     * <p>只做裁剪不改高度，因此整段动画里采样位图都不重建，不会出现「一层纯蒙版色」的闪现。
+     */
+    private void animateBlurInsetTo(int targetPx, long durationMs) {
+        if (overlayBlur == null) {
+            return;
+        }
+        if (blurAnimator != null) {
+            blurAnimator.cancel();
+            blurAnimator = null;
+        }
+        int from = blurTopInset;
+        if (durationMs <= 0L || from == targetPx) {
+            applyBlurInset(targetPx);
+            return;
+        }
+        ValueAnimator animator = ValueAnimator.ofInt(from, Math.max(0, targetPx));
+        blurAnimator = animator;
+        animator.setDuration(durationMs);
+        animator.setInterpolator(MotionManager.standard(this));
+        animator.addUpdateListener(a -> applyBlurInset((int) a.getAnimatedValue()));
+        animator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (blurAnimator == animation) {
+                    blurAnimator = null;
+                }
+            }
+        });
+        animator.start();
+    }
+
+    private void applyBlurInset(int insetPx) {
+        blurTopInset = Math.max(0, insetPx);
+        if (overlayBlur != null) {
+            overlayBlur.setTopInsetPx(blurTopInset);
+        }
+        // 投影轮廓的顶边与玻璃层同步，逐帧重算
+        if (overlayContent != null) {
+            overlayContent.invalidateOutline();
+        }
+    }
+
+    /**
+     * 覆盖层当前应有的高度。
+     *
+     * <p>刚改过底栏的边距 / 高度时 {@code getHeight()} 还是上一帧的值：若直接拿去算
+     * 玻璃层高度，切换「悬浮 / 贴底」的那一帧就会多出一条（或少掉一条）半透明带，
+     * 下一帧才被纠正 —— 这就是看起来的闪现。此时同步量一次，让玻璃层与底部留白
+     * 在同一帧内就落到新尺寸。
+     */
+    private int overlayContentHeight() {
+        if (overlayContent == null) {
+            return 0;
+        }
+        int width = overlayContent.getWidth();
+        if (!overlayGeometryDirty || width <= 0) {
+            return overlayContent.getHeight();
+        }
+        overlayGeometryDirty = false;
+        overlayContent.measure(
+                View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        int measured = overlayContent.getMeasuredHeight();
+        return measured > 0 ? measured : overlayContent.getHeight();
     }
 
     /**
@@ -1510,6 +1691,29 @@ public class MainActivity extends BaseActivity {
     }
 
     /**
+     * 输入法弹出时覆盖层的实际位移。
+     *
+     * <p>IME 的底部 inset 是从屏幕底边算的，已经把导航栏 / 手势区包含在内；
+     * 而底栏本身也已经为这段系统区域留过位（悬浮态是下外边距，贴底态是下内边距）。
+     * 直接用 -ime 会让底栏和键盘之间多出一整段系统区域高度的空隙，
+     * 所以这里把这部分扣掉，让底栏正好落在键盘上方。
+     */
+    private int imeOffset(int imeBottomInset) {
+        int chrome = AppearanceManager.isFloatingNav(this) ? navBarInset : attachedBottomInset();
+        return Math.max(0, imeBottomInset - chrome);
+    }
+
+    /**
+     * 贴底态需要为系统区域让出的高度。
+     *
+     * <p>只用可见导航栏的高度：{@code mandatorySystemGestures} 是给手势预留的保护区，
+     * 往往比导航栏本身高出一截，按它让位会在图标下方留出一大段空白。
+     */
+    private int attachedBottomInset() {
+        return navBarInset > 0 ? navBarInset : navBottomSafeInset;
+    }
+
+    /**
      * 按当前真实 insets 重新对齐覆盖层的输入法位移。
      *
      * <p>输入法的进出是逐帧动画：期间若窗口被切换（打开其它 Activity、切后台、
@@ -1523,7 +1727,7 @@ public class MainActivity extends BaseActivity {
         }
         WindowInsetsCompat root = ViewCompat.getRootWindowInsets(bottomOverlay);
         int ime = root == null ? 0 : imeBottomInset(root);
-        bottomOverlay.setTranslationY(-ime);
+        bottomOverlay.setTranslationY(-imeOffset(ime));
         if (overlayBottomInset != ime) {
             overlayBottomInset = ime;
             applyContentBottomInset();
@@ -1541,6 +1745,22 @@ public class MainActivity extends BaseActivity {
             overlayBottomInset = 0;
             applyContentBottomInset();
         }
+    }
+
+    /** 默认外观调整后的一次性说明，只对存过外观偏好的老用户展示。 */
+    private void maybeShowAppearanceNotice() {
+        if (bottomOverlay == null || isFinishing()
+                || !AppearanceManager.needsAppearanceNotice(this)) {
+            return;
+        }
+        AppearanceManager.markAppearanceNoticeShown(this);
+        Snackbar bar = Snackbar.make(bottomOverlay,
+                R.string.appearance_notice_default_changed, Snackbar.LENGTH_LONG);
+        // 提示压在覆盖层之上，避免被底栏挡住
+        bar.setAnchorView(bottomOverlay);
+        bar.setAction(R.string.appearance_notice_action, v ->
+                startActivity(new Intent(this, AppearanceSettingsActivity.class)));
+        bar.show();
     }
 
     /**
@@ -1598,6 +1818,9 @@ public class MainActivity extends BaseActivity {
         if (visible) {
             // 动画期间先撤投影：覆盖层高度还在随选择器变化，提前投影会得到一块错位的阴影
             applyOverlayElevation(0);
+            // 展开前先按底栏当前显隐确定形状：底栏已隐藏时选择器单独成胶囊
+            applyPagerCorners(navChromeHidden
+                    ? (AppearanceManager.isFloatingNav(this) ? px(NAV_RADIUS_DP) : 0f) : 0f);
             // 展开：上圆角从胶囊半径补间到 0，与滑入同时开始，避免直角突然出现
             animateNavCornerTo(0, duration);
             MotionManager.slideInFromBottom(this, pagerBar, () -> {
@@ -1715,6 +1938,11 @@ public class MainActivity extends BaseActivity {
         // 此时 outgoing == incoming，再走交叉淡入淡出会把这一页自己淡到 INVISIBLE，
         // 露出 XML 里默认可见的歌曲百科页（表现为「标题是上传页、内容是百科页」）。
         boolean switched = destination != dest;
+        // 离开贡献页时记住滚动位置，切回来时按原位置恢复（页码不变）
+        if (destination == DEST_CONTRIBUTIONS && dest != DEST_CONTRIBUTIONS
+                && contribScroll != null) {
+            contribScrollMemory = Math.max(0, contribScroll.getScrollY());
+        }
         destination = dest;
         invalidateOptionsMenu();
         // 切页时先收起输入法：否则新页面首帧仍在 IME inset 状态，底栏会先抬升再回落
@@ -1766,6 +1994,17 @@ public class MainActivity extends BaseActivity {
             incoming.setTranslationY(0f);
         }
 
+        // 进出该页都把滚动显隐复位：离开时恢复底栏，回来时按当前滚动位置重新吸顶。
+        // 必须在页面选择器动画之前复位，否则复位会取消选择器正在播放的滑入动画
+        resetScrollChrome();
+        // 切回贡献页：恢复到离开前的滚动位置（页码未变，无需重新请求）
+        if (contributions && currentStateTag == STATE_CONTENT && contribScrollMemory > 0
+                && contribScroll != null) {
+            pendingScrollY = contribScrollMemory;
+            contribScroll.post(this::restoreContribScroll);
+        } else if (contributions) {
+            contribScrollMemory = -1;
+        }
         // 页面选择器只在「我的贡献」且有内容时展开，进出该标签页时播放上滑 / 下滑动画
         setPagerVisible(contributions && currentStateTag == STATE_CONTENT);
 
@@ -1799,11 +2038,11 @@ public class MainActivity extends BaseActivity {
         boolean floating = AppearanceManager.isFloatingNav(this);
         int horizontal = floating ? px(NAV_MARGIN_H_DP) : 0;
         int bottomMargin = floating ? navBarInset + px(NAV_MARGIN_BOTTOM_DP) : 0;
-        // 贴底态：底栏自身在底部多留一段手势安全区，让背景一直铺到屏幕最底边。
+        // 贴底态：底栏自身在底部多留一段安全区，让背景一直铺到屏幕最底边。
         // 这段高度必须加在底栏（而不是外层 CardView 的 padding）上：
         // MaterialCardView 的 padding 不参与自身 wrap_content 的高度计算，
         // 直接给卡片设 padding 会出现「内容不下移、卡片也不变高」。
-        int safeBottom = floating ? 0 : navBottomSafeInset;
+        int safeBottom = floating ? 0 : attachedBottomInset();
         ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) navShell.getLayoutParams();
         lp.setMarginStart(horizontal);
         lp.setMarginEnd(horizontal);
@@ -1821,6 +2060,17 @@ public class MainActivity extends BaseActivity {
 
         int radius = floating ? px(NAV_RADIUS_DP) : 0;
         navShell.setRadius(radius);
+        // 底栏此刻若处于滚动隐藏状态，页面选择器应保持单行胶囊的形状
+        pagerBottomCornerPx = navChromeHidden ? radius : 0f;
+        applyPagerBottomMargin(navChromeHidden);
+        navChromeShift = 0;
+        // 边距 / 高度都在变，玻璃层的补间作废，下面按新几何直接对齐
+        if (blurAnimator != null) {
+            blurAnimator.cancel();
+            blurAnimator = null;
+        }
+        // 标记本次几何变更，让 syncOverlayBounds 同步量出新高度再交给玻璃层
+        overlayGeometryDirty = true;
 
         int glass = AppearanceManager.navGlassStyle(this);
         boolean glassOn = glass != AppearanceManager.GLASS_NONE;
@@ -1893,11 +2143,43 @@ public class MainActivity extends BaseActivity {
                 ShapeAppearanceModel.builder()
                         .setTopLeftCornerSize(radius)
                         .setTopRightCornerSize(radius)
-                        .setBottomLeftCornerSize(0f)
-                        .setBottomRightCornerSize(0f)
+                        .setBottomLeftCornerSize(pagerBottomCornerPx)
+                        .setBottomRightCornerSize(pagerBottomCornerPx)
                         .build());
         bg.setFillColor(ColorStateList.valueOf(fill));
         pagerBar.setBackground(bg);
+    }
+
+    /**
+     * 页面选择器下圆角：与底栏合并时为 0，底栏隐藏后补间到胶囊半径。
+     *
+     * <p>只改形状不重新布局，因此过渡过程中覆盖层高度不变，投影与玻璃层都不会抖。
+     */
+    private void animatePagerCornersTo(float targetPx, long durationMs) {
+        if (pagerCornerAnimator != null) {
+            pagerCornerAnimator.cancel();
+            pagerCornerAnimator = null;
+        }
+        float from = pagerBottomCornerPx;
+        if (durationMs <= 0L || Math.abs(from - targetPx) < 0.5f) {
+            applyPagerCorners(targetPx);
+            return;
+        }
+        pagerCornerAnimator = ValueAnimator.ofFloat(from, targetPx);
+        pagerCornerAnimator.setDuration(durationMs);
+        pagerCornerAnimator.setInterpolator(MotionManager.standard(this));
+        pagerCornerAnimator.addUpdateListener(
+                a -> applyPagerCorners((float) a.getAnimatedValue()));
+        pagerCornerAnimator.start();
+    }
+
+    private void applyPagerCorners(float bottomRadiusPx) {
+        pagerBottomCornerPx = bottomRadiusPx;
+        if (pagerBar == null) {
+            return;
+        }
+        applyPagerSurface(AppearanceManager.navGlassStyle(this) != AppearanceManager.GLASS_NONE,
+                navRadiusPx(), AppearanceManager.isFloatingNav(this));
     }
 
     /**
@@ -1972,20 +2254,33 @@ public class MainActivity extends BaseActivity {
             return;
         }
         final int inset = AppearanceManager.isFloatingNav(this) ? px(NAV_MARGIN_H_DP) : 0;
-        final int bottomGap = navShell != null
-                && navShell.getLayoutParams() instanceof ViewGroup.MarginLayoutParams
-                ? ((ViewGroup.MarginLayoutParams) navShell.getLayoutParams()).bottomMargin : 0;
+        // 底栏下外边距始终扣掉：底栏隐藏后这段间距由页面选择器自己承担，
+        // 因此两种状态下的「内容底边」都在同一位置
+        final int bottomGap = navBottomMargin();
         final int radius = navRadiusPx();
+        final int navHeight = navShell == null ? 0 : Math.max(0, navShell.getHeight());
         overlayContent.setOutlineProvider(new ViewOutlineProvider() {
             @Override
             public void getOutline(View view, Outline outline) {
-                outline.setRoundRect(inset, 0,
+                // 底栏滑出时选择器整体下移，轮廓顶边要跟着收进来，
+                // 否则选择器上方会一直留着一块没有材质、只有投影的空带
+                int top = shadowTopInset(navHeight);
+                outline.setRoundRect(inset, top,
                         Math.max(inset + 1, view.getWidth() - inset),
-                        Math.max(1, view.getHeight() - bottomGap), radius);
+                        Math.max(top + 1, Math.round(view.getHeight() - bottomGap)),
+                        radius);
             }
         });
         overlayContent.setClipToOutline(false);
         overlayContent.setElevation(elevationPx);
+    }
+
+    /** 投影轮廓的顶边：底栏在场时跟随选择器的下移量，底栏已收起时贴回覆盖层顶部。 */
+    private int shadowTopInset(int navHeightPx) {
+        if (navShell != null && navShell.getVisibility() == View.GONE) {
+            return 0;
+        }
+        return Math.min(blurTopInset, Math.max(0, navHeightPx));
     }
 
     /**
@@ -2044,6 +2339,11 @@ public class MainActivity extends BaseActivity {
     }
 
     private void requestOverlayBlurUpdate() {
+        // 覆盖层高度可能刚变过（底栏显隐、选择器展开）：玻璃层要一起跟上，
+        // 否则会剩下一整条高度不对的玻璃带。补间进行中则交给补间自己收尾。
+        if (blurAnimator == null || !blurAnimator.isRunning()) {
+            syncOverlayBounds();
+        }
         if (overlayBlur != null) {
             overlayBlur.markDirty();
         }
@@ -2251,15 +2551,360 @@ public class MainActivity extends BaseActivity {
         // 显示设置改动后立即刷新卡片显隐，避免「改完要等一会儿才生效」
         WikiPrefs.get(this).registerOnSharedPreferenceChangeListener(displayPrefListener);
 
-        // 滚动时按下一帧重建一次采样，实现动态模糊跟随而非静态贴图。
+        // 滚动时按下一帧重建一次采样，实现动态模糊跟随而非静态贴图；
+        // 同时驱动「分类标签吸顶 / 状态标签与底栏显隐」的同一套方向判定。
         if (contribScroll != null) {
+            scrollChrome = new ScrollChromeState(px(CHROME_HIDE_DP), px(CHROME_SHOW_DP),
+                    px(CHIPS_HIDE_DP), px(CHIPS_SHOW_DP));
+            chipStatusScroll = findViewById(R.id.chip_status_scroll);
+            // 吸顶时分类标签必须盖住被收起的状态标签，因此需要 Z 排序；
+            // 但 TabLayout 自带宽幅背景，一旦有 elevation 就会在标签栏上下各投出一条
+            // 明显的分隔线（吸顶前后外观不一致）。去掉轮廓后 Z 只参与绘制排序，
+            // 不再产生任何阴影。
+            if (tabLayout != null) {
+                tabLayout.setOutlineProvider(null);
+                ViewCompat.setTranslationZ(tabLayout, px(4));
+            }
+            if (chipStatusScroll != null) {
+                // 吸顶后状态标签行浮在列表之上（列表从它下面穿过），同样只参与排序不投影
+                chipStatusScroll.setOutlineProvider(null);
+                ViewCompat.setTranslationZ(chipStatusScroll, px(2));
+            }
             contribScroll.setOnScrollChangeListener(
                     (NestedScrollView.OnScrollChangeListener) (v, scrollX, scrollY, oldX, oldY) -> {
                         if (scrollY != oldY) {
                             requestOverlayBlurUpdate();
+                            onContribScrolled(scrollY);
                         }
                     });
+            // 卡片显隐、旋转、字体缩放都会改变标签在内容中的位置，布局完成后重新套用吸顶
+            contribLayoutListener = this::syncScrollChromeAfterLayout;
+            contribScroll.getViewTreeObserver().addOnGlobalLayoutListener(contribLayoutListener);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // 「我的贡献」滚动显隐
+    // ------------------------------------------------------------------
+
+    /** 分类标签在滚动内容中的纵坐标（未完成布局时返回 -1）。 */
+    private int contribTabsTop() {
+        if (tabLayout == null) {
+            return -1;
+        }
+        int top = tabLayout.getTop();
+        return top >= 0 ? top : -1;
+    }
+
+    private boolean contribTabsPinned(int scrollY) {
+        int tabTop = contribTabsTop();
+        return tabTop >= 0 && scrollY > 0 && scrollY >= tabTop;
+    }
+
+    /** 滚动采样：方向判定 → 标签吸顶 → 状态标签与底栏显隐。 */
+    private void onContribScrolled(int scrollY) {
+        if (scrollChrome == null || tabLayout == null) {
+            return;
+        }
+        lastContribScrollY = Math.max(0, scrollY);
+        boolean pinned = contribTabsPinned(lastContribScrollY);
+        ScrollChromeState.State state = scrollChrome.update(lastContribScrollY, pinned);
+        applyStickyTabs(lastContribScrollY, pinned);
+        applyChipsHidden(state.chipsHidden, pinned);
+        setNavChromeVisible(!state.navHidden);
+    }
+
+    /**
+     * 布局变化后重新套用吸顶位置。
+     *
+     * <p>只按当前坐标重排，不产生新的滚动增量，避免「卡片显隐」被误判成一次滑动。
+     */
+    private void syncScrollChromeAfterLayout() {
+        if (scrollChrome == null || tabLayout == null || contribScroll == null) {
+            return;
+        }
+        if (destination != DEST_CONTRIBUTIONS) {
+            return;
+        }
+        int y = Math.max(0, contribScroll.getScrollY());
+        lastContribScrollY = y;
+        boolean pinned = contribTabsPinned(y);
+        // 吸顶状态变化意味着标签在内容中的位置变了：重置累计位移，避免被当成一次滑动
+        if (pinned != contribPinned) {
+            scrollChrome.skipTo(y);
+        }
+        applyStickyTabs(y, pinned);
+        applyChipsHidden(scrollChrome.state().chipsHidden, pinned);
+    }
+
+    /** 分类标签吸顶：标签跟着内容滚到顶部后，用反向位移固定在那里。 */
+    private void applyStickyTabs(int scrollY, boolean pinned) {
+        if (tabLayout == null) {
+            return;
+        }
+        contribPinned = pinned;
+        int tabTop = contribTabsTop();
+        float dy = pinned && tabTop >= 0 ? scrollY - tabTop : 0f;
+        tabLayout.setTranslationY(dy);
+    }
+
+    /**
+     * 状态标签显隐：只有分类标签吸顶后、下拉累计超过阈值才收起；上滑达到恢复阈值即滑回。
+     *
+     * <p>位移不改变布局，标签让出的空间由列表容器随同一段动画上移填补：不会有空白带，
+     * 也不会出现「标签已收起、列表还在原位」的错位。
+     */
+    private void applyChipsHidden(boolean hidden, boolean pinned) {
+        animateChipsTo(hidden && pinned ? 1f : 0f);
+        // 即使进度没变，吸顶基准也会随滚动改变：每帧都必须重算位移，
+        // 否则标签行会跟着内容飘走（表现为夹在两张卡片之间）
+        applyChipsOffset(lastContribScrollY, pinned, chipsProgress);
+    }
+
+    /** 把状态标签的收起进度动画到目标值；目标未变时不动，避免滚动中反复重启动画。 */
+    private void animateChipsTo(float target) {
+        boolean running = chipsAnimator != null && chipsAnimator.isRunning();
+        if (Math.abs(chipsTarget - target) < 0.001f
+                && (running || Math.abs(chipsProgress - target) < 0.001f)) {
+            return;
+        }
+        chipsTarget = target;
+        if (chipsAnimator != null) {
+            chipsAnimator.cancel();
+            chipsAnimator = null;
+        }
+        long duration = MotionManager.controlDuration(this);
+        if (duration <= 0L || Math.abs(chipsProgress - target) < 0.001f) {
+            chipsProgress = target;
+            applyChipsOffset(lastContribScrollY, contribPinned, chipsProgress);
+            return;
+        }
+        ValueAnimator animator = ValueAnimator.ofFloat(chipsProgress, target);
+        chipsAnimator = animator;
+        animator.setDuration(duration);
+        animator.setInterpolator(MotionManager.emphasized(this));
+        animator.addUpdateListener(a -> {
+            chipsProgress = (float) a.getAnimatedValue();
+            applyChipsOffset(lastContribScrollY, contribPinned, chipsProgress);
+        });
+        animator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (chipsAnimator == animation) {
+                    chipsAnimator = null;
+                }
+            }
+        });
+        animator.start();
+    }
+
+    /** 按给定收起进度（0..1）套用状态标签与列表的位移。 */
+    private void applyChipsOffset(int scrollY, boolean pinned, float progress) {
+        if (chipStatusScroll == null) {
+            return;
+        }
+        int height = chipStatusScroll.getHeight();
+        if (height <= 0) {
+            return;
+        }
+        int tabTop = contribTabsTop();
+        // 与分类标签栏用同一基准位移：吸顶后状态标签行固定在标签栏正下方，
+        // 列表按自身滚动从它下面穿过。此前只按标签行自己的位置补偿，少算了
+        // 标签栏那一段高度，标签行会被压进标签栏里，还会从卡片之间透出来。
+        float pinDy = pinned && tabTop >= 0 ? Math.max(0, scrollY - tabTop) : 0f;
+        chipsHideOffset = -progress * height;
+        chipStatusScroll.setTranslationY(pinDy + chipsHideOffset);
+        // 吸顶后给状态标签行铺一层不透明底色，否则列表会从 chip 之间的空隙里透出来
+        if (pinned != chipsSurfacePainted) {
+            chipsSurfacePainted = pinned;
+            chipStatusScroll.setBackgroundColor(pinned
+                    ? MaterialColors.getColor(tabLayout,
+                            com.google.android.material.R.attr.colorSurface)
+                    : Color.TRANSPARENT);
+        }
+    }
+
+    /**
+     * 底栏滚动显隐。
+     *
+     * <p>隐藏时底栏本身平移出屏幕，页面选择器反向补偿同样的位移，因此分页控件
+     * 始终停在原位；随后把底栏设为 {@code GONE}，覆盖层高度随之收缩，
+     * 玻璃层与列表底部留白一起收回，不会留下一条与底栏等高的空条。
+     */
+    private void setNavChromeVisible(boolean visible) {
+        if (navShell == null) {
+            return;
+        }
+        boolean hidden = !visible;
+        if (navChromeHidden == hidden) {
+            return;
+        }
+        navChromeHidden = hidden;
+        if (navChromeShift <= 0) {
+            navChromeShift = measureNavChromeShift();
+        }
+        final int shift = navChromeShift;
+        final int navHeight = Math.max(0, shift - navBottomMargin());
+        final long duration = MotionManager.controlDuration(this);
+        final float pagerRadius = AppearanceManager.isFloatingNav(this) ? px(NAV_RADIUS_DP) : 0f;
+        navShell.animate().cancel();
+        if (pagerBar != null) {
+            pagerBar.animate().cancel();
+        }
+        // 底栏让位后，页面选择器补成完整的单行圆角胶囊；底栏回来时下圆角收回，
+        // 两块表面重新拼成一条连续的面
+        animatePagerCornersTo(hidden ? pagerRadius : 0f, duration);
+        if (duration <= 0L) {
+            navShell.setVisibility(visible ? View.VISIBLE : View.GONE);
+            navShell.setTranslationY(0f);
+            navShell.setAlpha(1f);
+            applyPagerBottomMargin(hidden);
+            if (pagerBar != null) {
+                pagerBar.setTranslationY(0f);
+            }
+            applyNavShadow();
+            // 布局高度已经变化，玻璃层按新高度直接对齐
+            applyBlurInset(blurHiddenNavHeight());
+            syncOverlayBounds();
+            requestOverlayBlurUpdate();
+            return;
+        }
+        boolean pagerShown = pagerBar != null && pagerBar.getVisibility() == View.VISIBLE;
+        if (!visible) {
+            if (pagerShown) {
+                // 只走「底栏高度」：落位时留出与底栏相同的外边距，胶囊悬浮在手势区之上
+                pagerBar.animate().translationY(navHeight)
+                        .setDuration(duration)
+                        .setInterpolator(MotionManager.standard(this))
+                        .start();
+            }
+            // 覆盖层高度要等底栏真正 GONE 才收缩，玻璃层先跟着同一段动画把底栏那一段裁掉，
+            // 否则选择器上方会残留一条底栏高度的玻璃带
+            animateBlurInsetTo(navHeight, duration);
+            navShell.animate().translationY(shift).alpha(0f)
+                    .setDuration(duration)
+                    .setInterpolator(MotionManager.standard(this))
+                    .withEndAction(() -> {
+                        // 取消动画也会走到这里：只有仍处于「应隐藏」状态时才收尾
+                        if (!navChromeHidden) {
+                            return;
+                        }
+                        navShell.setVisibility(View.GONE);
+                        navShell.setTranslationY(0f);
+                        navShell.setAlpha(1f);
+                        // 底栏消失后由选择器自己让出底边距，视觉位置与动画终点一致
+                        applyPagerBottomMargin(true);
+                        if (pagerBar != null) {
+                            pagerBar.setTranslationY(0f);
+                        }
+                        // 底栏已 GONE，覆盖层高度不再包含它：重装轮廓，
+                        // 倒 U 形投影跟着收到只剩选择器的这一块上
+                        applyNavShadow();
+                        // 补间可能被取消在半路：按终态收口，玻璃层裁掉整条底栏高度
+                        if (blurAnimator != null) {
+                            blurAnimator.cancel();
+                            blurAnimator = null;
+                        }
+                        applyBlurInset(blurHiddenNavHeight());
+                        syncOverlayBounds();
+                        requestOverlayBlurUpdate();
+                    })
+                    .start();
+        } else {
+            // 选择器先按「与底栏合并」的布局归位，再用等量位移补上差值，
+            // 随底栏一起滑回，不会在结尾那一帧跳一下
+            applyPagerBottomMargin(false);
+            // 底栏还没重新参与布局：玻璃层先按「已收起」的裁剪量起步
+            if (blurAnimator != null) {
+                blurAnimator.cancel();
+                blurAnimator = null;
+            }
+            applyBlurInset(navHeight);
+            navShell.setVisibility(View.VISIBLE);
+            navShell.setTranslationY(shift);
+            navShell.setAlpha(0f);
+            // 底栏重新参与布局：投影轮廓按新的覆盖层高度重算，倒 U 形阴影随底栏一起滑回
+            applyNavShadow();
+            // 玻璃层再随底栏一起长回来
+            animateBlurInsetTo(0, duration);
+            if (pagerShown) {
+                pagerBar.setTranslationY(navHeight);
+                pagerBar.animate().translationY(0f)
+                        .setDuration(duration)
+                        .setInterpolator(MotionManager.standard(this))
+                        .start();
+            }
+            navShell.animate().translationY(0f).alpha(1f)
+                    .setDuration(duration)
+                    .setInterpolator(MotionManager.standard(this))
+                    .start();
+        }
+    }
+
+    /** 底栏外壳的下外边距（悬浮态为手势安全区 + 视觉间距，贴底态为 0）。 */
+    private int navBottomMargin() {
+        if (navShell == null
+                || !(navShell.getLayoutParams() instanceof ViewGroup.MarginLayoutParams)) {
+            return 0;
+        }
+        return Math.max(0,
+                ((ViewGroup.MarginLayoutParams) navShell.getLayoutParams()).bottomMargin);
+    }
+
+    /**
+     * 页面选择器的底边距：独立成单行胶囊时让出与底栏相同的外边距，
+     * 否则紧贴底栏上边缘（两块表面合并成一条）。
+     */
+    private void applyPagerBottomMargin(boolean standalone) {
+        if (pagerBar == null
+                || !(pagerBar.getLayoutParams() instanceof ViewGroup.MarginLayoutParams)) {
+            return;
+        }
+        ViewGroup.MarginLayoutParams lp =
+                (ViewGroup.MarginLayoutParams) pagerBar.getLayoutParams();
+        int target = standalone ? navBottomMargin() : 0;
+        if (lp.bottomMargin != target) {
+            lp.bottomMargin = target;
+            pagerBar.setLayoutParams(lp);
+        }
+    }
+
+    /** 隐藏底栏需要让出的高度：底栏自身 + 其下外边距。 */
+    private int measureNavChromeShift() {
+        if (navShell == null || navShell.getHeight() <= 0) {
+            return px(CHROME_HIDE_DP);
+        }
+        int bottomMargin = 0;
+        ViewGroup.LayoutParams params = navShell.getLayoutParams();
+        if (params instanceof ViewGroup.MarginLayoutParams) {
+            bottomMargin = ((ViewGroup.MarginLayoutParams) params).bottomMargin;
+        }
+        return navShell.getHeight() + Math.max(0, bottomMargin);
+    }
+
+    /**
+     * 复位滚动显隐：切换目的地、切分类 / 状态、翻页、下拉刷新后调用。
+     *
+     * <p>复位的是「累计位移」，当前滚动位置仍会重新参与一次吸顶计算，
+     * 因此不会把用户已经滚到的位置硬拽回顶部。
+     */
+    private void resetScrollChrome() {
+        if (scrollChrome == null) {
+            return;
+        }
+        int y = contribScroll == null ? 0 : Math.max(0, contribScroll.getScrollY());
+        scrollChrome.skipTo(y);
+        lastContribScrollY = y;
+        if (chipsAnimator != null) {
+            chipsAnimator.cancel();
+            chipsAnimator = null;
+        }
+        chipsProgress = 0f;
+        chipsTarget = 0f;
+        boolean pinned = contribTabsPinned(y);
+        applyStickyTabs(y, pinned);
+        applyChipsOffset(y, pinned, 0f);
+        setNavChromeVisible(true);
     }
 
     // ------------------------------------------------------------------
@@ -3216,6 +3861,13 @@ public class MainActivity extends BaseActivity {
         scanCache = null;
         pageCache.clear();
         searchMatches = Collections.emptyList();
+        // 分类 / 审核状态 / 刷新都会换掉整页数据：回到列表顶部，
+        // 保证吸顶前的筛选界面（分类 + 审核状态两行）完整可见
+        contribScrollMemory = -1;
+        if (contribScroll != null) {
+            contribScroll.scrollTo(0, 0);
+        }
+        resetScrollChrome();
         if (isSearchActive()) {
             startSearch();
         } else {
@@ -3236,6 +3888,12 @@ public class MainActivity extends BaseActivity {
             return;
         }
         pageNavPending = true;
+        // 换页即换掉整页内容：回到顶部，筛选界面（分类 + 审核状态）保持完整可见
+        contribScrollMemory = -1;
+        if (contribScroll != null) {
+            contribScroll.scrollTo(0, 0);
+        }
+        resetScrollChrome();
         loadPage(target);
     }
 
@@ -3413,11 +4071,32 @@ public class MainActivity extends BaseActivity {
             return;
         }
         contribScroll.scrollTo(0, y);
+        syncScrollChromeAfterRestore(y);
         contribScroll.postOnAnimation(() -> {
             if (contribScroll != null && !isFinishing() && !isDestroyed()) {
                 contribScroll.scrollTo(0, y);
+                syncScrollChromeAfterRestore(y);
             }
         });
+    }
+
+    /** 恢复滚动位置后重新套用吸顶与显隐，避免列表回到原位置却停在「未吸顶」状态。 */
+    private void syncScrollChromeAfterRestore(int scrollY) {
+        if (scrollChrome == null) {
+            return;
+        }
+        scrollChrome.skipTo(scrollY);
+        lastContribScrollY = Math.max(0, scrollY);
+        boolean pinned = contribTabsPinned(lastContribScrollY);
+        applyStickyTabs(lastContribScrollY, pinned);
+        // 恢复位置属于复位场景：筛选界面直接回到展开态，不做动画
+        if (chipsAnimator != null) {
+            chipsAnimator.cancel();
+            chipsAnimator = null;
+        }
+        chipsProgress = 0f;
+        chipsTarget = 0f;
+        applyChipsOffset(lastContribScrollY, pinned, 0f);
     }
 
     private void handleFailure(int gen, @Nullable WikiException error) {

@@ -2,6 +2,7 @@ package com.auramusic.wiki.classic;
 
 import android.app.Activity;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -16,8 +17,8 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * <ol>
  *   <li><b>lucida API</b>：恢复旧链路的全部格式选项，普通 HTTP 直连；</li>
- *   <li><b>lucida + 浏览器会话</b>：被 Cloudflare 拦下时，用 WebView 过验证拿 cf_clearance，
- *       再用同一 UA / Cookie 重试（可拿到 m4a-aac-320 等服务端转码产物）；</li>
+ *   <li><b>lucida + 浏览器内通道</b>：被 Cloudflare 拦下时改用 WebView 页面内的 fetch 请求，
+ *       挑战与业务请求出自同一个浏览器实例（可拿到 m4a-aac-320 等服务端转码产物）；</li>
  *   <li><b>声云直连</b>：前两条都失效时询问用户，同意后走 SoundCloud 官方 api-v2
  *       （只有公开音源，通常 96–160 kbps）。</li>
  * </ol>
@@ -58,15 +59,36 @@ final class SoundCloudDownloader {
      */
     static File download(Activity activity, String pageUrl, String lucidaFormat, File dir,
                          String title, AudioTagger.Tags tags, Progress progress) throws IOException {
+        return download(activity, pageUrl, lucidaFormat, dir, title, tags, progress, null);
+    }
+
+    /**
+     * 按优先级取一首曲目的音频文件，并在落盘后写入元数据。
+     *
+     * @param lucidaFormat lucida 的 downscale 取值（下拉框原值）
+     * @param tags         为空表示不写标签
+     * @param activity     用于过 Cloudflare 与询问兜底；为空时跳过需要界面的步骤
+     * @param cancelled    取消信号（可为 null）：用户点「停止」后尽快结束当前通道
+     */
+    static File download(Activity activity, String pageUrl, String lucidaFormat, File dir,
+                         String title, AudioTagger.Tags tags, Progress progress,
+                         java.util.concurrent.atomic.AtomicBoolean cancelled) throws IOException {
+        CronetHttp.init(activity);
         int retried = 0;
         while (true) {
+            if (cancelled != null && cancelled.get()) {
+                throw new IOException("已取消下载");
+            }
             IOException last;
-            // 一 / 二：lucida API。持有 cf_clearance 时第一步就能成功，
-            // 只有真的被 Cloudflare 拦下（403/503）才需要开浏览器会话。
+            // 一 / 二：lucida API。直连就能成功时不会付出任何额外代价，
+            // 只有真的被 Cloudflare 拦下（403/503）才开浏览器内通道。
             try {
-                return lucida(activity, pageUrl, lucidaFormat, dir, title, tags, progress);
+                return lucida(activity, pageUrl, lucidaFormat, dir, title, tags, progress, cancelled);
             } catch (IOException e) {
                 last = e;
+            }
+            if (cancelled != null && cancelled.get()) {
+                throw new IOException("已取消下载");
             }
             // 三：询问用户「确定直连 / 重试 lucida / 停止」
             Choice choice;
@@ -100,8 +122,7 @@ final class SoundCloudDownloader {
                 throw new IOException(activity == null ? "已停止下载"
                         : activity.getString(R.string.sc_fallback_stopped));
             }
-            // 重试：强制丢弃旧会话，下一轮重新过验证；最多两轮，避免无限弹窗
-            LucidaClient.setSession("", "");
+            // 重试：下一轮会重新走浏览器通道；最多两轮，避免无限弹窗
             if (++retried > 2) {
                 throw last;
             }
@@ -109,30 +130,44 @@ final class SoundCloudDownloader {
     }
 
     /**
-     * lucida 通道：先按当前会话直连，被 Cloudflare 拦下时过一次浏览器验证再试。
+     * lucida 通道：先用原生栈直连，被 Cloudflare 拦下后切换到「浏览器内请求」。
      *
-     * <p>不做「挑战过就永远走浏览器」的短路：持有 {@code cf_clearance} 时普通请求本身就能过，
-     * 短路反而会让后续下载全部绕到验证链路。
+     * <p>不再走「先用 WebView 拿 cf_clearance、再交给原生栈」的旧路子：Cloudflare 把通行证
+     * 与浏览器指纹（UA + TLS/HTTP2 + IP）绑在一起，换一个 HTTP 栈就会被判成新客户端继续 403。
+     * 现在把后续所有请求（含音频文件）都放回同一个 WebView 页面里执行。
      */
     private static File lucida(Activity activity, String pageUrl, String format, File dir,
-                               String title, AudioTagger.Tags tags, Progress progress)
+                               String title, AudioTagger.Tags tags, Progress progress,
+                               java.util.concurrent.atomic.AtomicBoolean cancelled)
             throws IOException {
         try {
             return finish(LucidaClient.download(pageUrl, format, "", title, dir,
-                    lucidaProgress(progress)), tags);
+                    lucidaProgress(progress), cancelled), tags);
         } catch (IOException e) {
+            Log.w("LucidaFlow", "native failed: " + e.getMessage());
             if (!LucidaClient.isChallenge(e) || activity == null) {
                 throw e;
             }
-            // 通行证有寿命：先丢掉旧会话，再让 WebView 重新过验证
-            LucidaClient.setSession("", "");
             status(activity, progress, R.string.sc_lucida_verifying);
-            if (!LucidaSession.ensure(activity, 25_000L)) {
-                throw e;
+            try (LucidaBrowser browser = LucidaBrowser.open(activity, 25_000L)) {
+                LucidaClient.setTransport(browser);
+                return finish(LucidaClient.download(pageUrl, format, "", title, dir,
+                        lucidaProgress(progress), cancelled), tags);
+            } catch (IOException browserError) {
+                Log.w("LucidaFlow", "browser failed: " + browserError.getMessage());
+                throw new IOException("lucida 浏览器通道失败：" + brief(browserError.getMessage()), e);
+            } finally {
+                LucidaClient.setTransport(null);
             }
-            return finish(LucidaClient.download(pageUrl, format, "", title, dir,
-                    lucidaProgress(progress)), tags);
         }
+    }
+
+    private static String brief(String message) {
+        if (message == null) {
+            return "";
+        }
+        String one = message.replace('\n', ' ').trim();
+        return one.length() > 120 ? one.substring(0, 120) : one;
     }
 
     private static File finish(File file, AudioTagger.Tags tags) {

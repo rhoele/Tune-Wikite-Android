@@ -25,16 +25,23 @@ public final class WikiIdParser {
     private static final Pattern LOOSE_ID = Pattern.compile("(?<![0-9])([1-9][0-9]{5,19})(?![0-9])");
 
     /**
-     * 艺人分享链接：兼容
-     * {@code https://y.music.163.com/m/artist?id=56949793}、
-     * {@code https://music.163.com/#/artist?id=56949793}、
-     * {@code https://music.163.com/m/artist?id=56949793} 等形态。
+     * 艺人分享链接：按 host / path / query / 哈希路由结构解析，而不是字符串包含「artist」。
      *
-     * <p>分享口令通常形如「分享歌手: Inaharu 快来听… https://y.music.163.com/m/artist?id=…」，
-     * 因此这里是「在整段文本里找链接」，而不是要求输入本身就是链接。
+     * <p>兼容：
+     * <ul>
+     *   <li>{@code https://y.music.163.com/m/artist?id=56949793}</li>
+     *   <li>{@code https://music.163.com/#/artist?id=56949793}（路径与参数都在 fragment 里）</li>
+     *   <li>{@code https://music.163.com/artist?id=56949793}</li>
+     *   <li>完整的「分享歌手」口令：文本中夹带链接、换行、空格与其它 query 参数</li>
+     * </ul>
+     *
+     * <p>歌曲 / 专辑 / 歌单链接一律不识别；文本中有多个链接时取第一个可用的艺人链接。
      */
-    private static final Pattern ARTIST_LINK = Pattern.compile(
-            "163\\.com/(?:#/|m/)?artist[^\\s]{0,120}?[?&#]id=([1-9][0-9]{0,19})(?![0-9])");
+    private static final Pattern URL_PATTERN =
+            Pattern.compile("(?i)https?://[^\\s\"'<>，。；、）)]+");
+
+    /** 纯数字艺人 ID（与歌曲 ID 相同的合法性约束） */
+    private static final Pattern PURE_ARTIST_ID = Pattern.compile("^[1-9][0-9]{0,19}$");
 
     private WikiIdParser() {
     }
@@ -85,15 +92,104 @@ public final class WikiIdParser {
     /**
      * 从艺人分享文本中解析艺人 ID。
      *
-     * @param raw 用户粘贴的分享口令或艺人链接
-     * @return 艺人 ID；文本中没有艺人链接时返回 -1
+     * @param raw 用户粘贴的分享口令、艺人链接或纯数字 ID
+     * @return 艺人 ID；文本中没有可识别的艺人链接时返回 -1
      */
     public static long parseArtistId(String raw) {
         if (raw == null) {
             return -1L;
         }
-        Matcher matcher = ARTIST_LINK.matcher(raw.trim());
-        return matcher.find() ? safeParse(matcher.group(1)) : -1L;
+        String input = raw.trim();
+        if (input.isEmpty()) {
+            return -1L;
+        }
+        if (PURE_ARTIST_ID.matcher(input).matches()) {
+            return safeParse(input);
+        }
+        Matcher urls = URL_PATTERN.matcher(input);
+        while (urls.find()) {
+            long id = artistIdFromUrl(urls.group());
+            if (id > 0L) {
+                return id;
+            }
+        }
+        return -1L;
+    }
+
+    /** 从单条 URL 中判定是否为网易云艺人链接，并取出 {@code id} 参数。 */
+    private static long artistIdFromUrl(String rawUrl) {
+        String url = trimTrailingPunctuation(rawUrl);
+        try {
+            java.net.URI uri = new java.net.URI(url);
+            String host = uri.getHost();
+            if (host == null) {
+                return -1L;
+            }
+            host = host.toLowerCase(java.util.Locale.ROOT);
+            if (!host.equals("music.163.com") && !host.endsWith(".music.163.com")) {
+                return -1L;
+            }
+            String path = uri.getPath();
+            String query = uri.getRawQuery();
+            // 哈希路由：#/artist?id=xxx —— 路径与参数都在 fragment 里
+            String fragment = uri.getRawFragment();
+            if (fragment != null && !fragment.isEmpty()) {
+                java.net.URI inner = new java.net.URI(
+                        fragment.startsWith("/") ? fragment : "/" + fragment);
+                path = inner.getPath();
+                query = inner.getRawQuery();
+            }
+            if (path == null) {
+                return -1L;
+            }
+            String normalized = path.toLowerCase(java.util.Locale.ROOT);
+            while (normalized.endsWith("/")) {
+                normalized = normalized.substring(0, normalized.length() - 1);
+            }
+            // 只接受艺人页；歌曲 / 专辑 / 歌单 / 电台等路径一律忽略
+            if (!normalized.equals("/artist") && !normalized.equals("/m/artist")) {
+                return -1L;
+            }
+            return idFromQuery(query);
+        } catch (Exception e) {
+            return -1L;
+        }
+    }
+
+    /** 从 query 串里取 {@code id}，并校验为合法 ID。 */
+    private static long idFromQuery(String query) {
+        if (query == null || query.isEmpty()) {
+            return -1L;
+        }
+        for (String pair : query.split("&")) {
+            int eq = pair.indexOf('=');
+            if (eq <= 0) {
+                continue;
+            }
+            if (!"id".equals(pair.substring(0, eq))) {
+                continue;
+            }
+            String value = pair.substring(eq + 1);
+            if (PURE_ARTIST_ID.matcher(value).matches()) {
+                return safeParse(value);
+            }
+        }
+        return -1L;
+    }
+
+    /** 去掉链接末尾可能被一起复制的标点，避免 {@code id=123，} 这类尾巴导致解析失败。 */
+    private static String trimTrailingPunctuation(String url) {
+        int end = url.length();
+        while (end > 0) {
+            char c = url.charAt(end - 1);
+            if (c == '.' || c == ',' || c == ')' || c == ']' || c == '}'
+                    || c == '，' || c == '。' || c == '、' || c == '）' || c == '】') {
+                end--;
+                continue;
+            }
+            break;
+        }
+        return url.substring(0, end);
     }
 
     /** 归一化输出：解析失败返回 null，成功返回数字字符串 */

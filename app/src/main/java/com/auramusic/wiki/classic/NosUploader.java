@@ -14,6 +14,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 网易云 NOS 上传（专辑封面 / 歌曲音频）。
@@ -104,20 +105,39 @@ final class NosUploader {
         JSONObject token = allocToken(cookie, file.getName(), ext, "image", "yyimgs",
                 0, null);
         return uploadWithToken(file, token, normalizeMime(mime, file.getName(), true), md5,
-                progress);
+                progress, null);
     }
 
     /** 音频上传。 */
     static NosFile uploadAudio(Context context, File file, String mime, Progress progress)
             throws IOException {
+        return uploadAudio(context, file, mime, progress, null);
+    }
+
+    /**
+     * 音频上传（可取消）。
+     *
+     * <p>{@code cancelled} 置位后，分块循环与失败重试都会在一个分块内退出，
+     * 避免「替换 / 移除在途曲目」时旧任务还要把整首歌传完才停。
+     */
+    static NosFile uploadAudio(Context context, File file, String mime, Progress progress,
+                               AtomicBoolean cancelled) throws IOException {
         String cookie = requireCookie(context);
         String ext = file.getName().contains(".")
                 ? file.getName().substring(file.getName().lastIndexOf('.') + 1) : "m4a";
         String md5 = Md5.hex(file);
+        checkCancelled(cancelled);
         JSONObject token = allocToken(cookie, file.getName(), ext, "audio", "ymusic",
                 file.length(), md5);
+        checkCancelled(cancelled);
         return uploadWithToken(file, token, normalizeMime(mime, file.getName(), false), md5,
-                progress);
+                progress, cancelled);
+    }
+
+    private static void checkCancelled(AtomicBoolean cancelled) throws IOException {
+        if (cancelled != null && cancelled.get()) {
+            throw new IOException("上传已取消");
+        }
     }
 
     /** 分块请求的 Content-Type 必须是真实类型，NOS 会按它校验对象类型。 */
@@ -255,7 +275,8 @@ final class NosUploader {
     }
 
     private static NosFile uploadWithToken(File file, JSONObject token, String mime, String md5,
-                                           Progress progress) throws IOException {
+                                           Progress progress, AtomicBoolean cancelled)
+            throws IOException {
         String bucket = token.optString("bucket", "");
         String objectKey = token.optString("objectKey", "");
         String nosToken = token.optString("token", "");
@@ -273,13 +294,14 @@ final class NosUploader {
         String context = null;
         try (RandomAccessFile in = new RandomAccessFile(file, "r")) {
             while (offset < length) {
+                checkCancelled(cancelled);
                 int want = (int) Math.min(CHUNK_SIZE, length - offset);
                 byte[] chunk = new byte[want];
                 in.seek(offset);
                 in.readFully(chunk);
                 boolean complete = offset + want >= length;
                 String body = postChunk(chunk, offset, complete, bucket, objectKey, objectParam,
-                        nosToken, context, Md5.base64(chunk), contentType);
+                        nosToken, context, Md5.base64(chunk), contentType, cancelled);
                 long next = offset + want;
                 // 与原 APK 一致：优先采用服务端返回的 context / offset
                 if (body != null && !body.isEmpty()) {
@@ -307,8 +329,8 @@ final class NosUploader {
 
     private static String postChunk(byte[] data, long offset, boolean complete, String bucket,
                                     String objectKey, String objectParam, String nosToken,
-                                    String context, String contentMd5, String contentType)
-            throws IOException {
+                                    String context, String contentMd5, String contentType,
+                                    AtomicBoolean cancelled) throws IOException {
         IOException first = null;
         String query = "?offset=" + offset + "&complete=" + complete
                 + "&version=1.0&objectkey=" + objectParam
@@ -318,6 +340,8 @@ final class NosUploader {
                 "https://music.163.com/web/proxy/nosupload" + query
         };
         for (String url : urls) {
+            // 取消后不要再去试备用通道，否则要陪着一次完整超时才退出
+            checkCancelled(cancelled);
             try {
                 return write(url, data, nosToken, contentMd5, contentType);
             } catch (IOException e) {
